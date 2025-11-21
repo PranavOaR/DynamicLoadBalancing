@@ -1,0 +1,935 @@
+==============================================================================
+INTERACTIVE LOAD BALANCER - COMPREHENSIVE FUNCTION DOCUMENTATION
+==============================================================================
+
+This document details every function in the interactive version of the
+dynamic load balancer, organized by category with inputs, outputs, and 
+algorithm descriptions.
+
+==============================================================================
+PART 1: INPUT VALIDATION & UTILITY FUNCTIONS
+==============================================================================
+
+---
+FUNCTION: void clearBuffer()
+---
+PURPOSE:
+  Clears the input buffer after user enters data. Prevents input overflow
+  and allows fresh input for the next prompt.
+
+INPUT PARAMETERS:
+  (none)
+
+RETURN VALUE:
+  void (no return)
+
+HOW IT WORKS:
+  • Reads characters from stdin until newline (\n) or EOF
+  • Useful after scanf() to clean leftover characters
+  • Prevents "Invalid input!" messages when entering subsequent values
+
+TIME COMPLEXITY:
+  O(n) where n = number of characters in buffer (typically small)
+
+EXAMPLE USAGE:
+  scanf("%d", &value);
+  clearBuffer();  // Clean any leftover characters
+
+IMPORTANT NOTES:
+  • Must be called AFTER every scanf() that reads a single item
+  • Prevents cascading input errors
+  • Essential for interactive menu systems
+
+---
+FUNCTION: int getIntInput(const char* prompt, int minVal, int maxVal)
+---
+PURPOSE:
+  Safely reads an integer from user with validation and retry logic.
+  Ensures input falls within specified range.
+
+INPUT PARAMETERS:
+  • prompt (const char*): Message to display to user
+                         Example: "Enter number of servers (1-20): "
+  • minVal (int): Minimum acceptable value (inclusive)
+  • maxVal (int): Maximum acceptable value (inclusive)
+
+RETURN VALUE:
+  int: Valid integer between minVal and maxVal
+
+HOW IT WORKS:
+  1. Display prompt to user
+  2. Attempt to read integer with scanf()
+  3. If scanf fails: clear buffer, show error, retry
+  4. If value outside range [minVal, maxVal]: show error, retry
+  5. Return valid value when accepted
+
+VALIDATION CHECKS:
+  • scanf() returns 1 (successful read)
+  • Value >= minVal AND value <= maxVal
+
+TIME COMPLEXITY:
+  O(k) where k = number of retry attempts (user-dependent)
+
+EXAMPLE USAGE:
+  int servers = getIntInput("Number of servers (1-20): ", 1, 20);
+  // User enters "25" → Error, retry
+  // User enters "6" → Returns 6
+
+IMPORTANT NOTES:
+  • Automatically retries on invalid input
+  • User never sees unvalidated data
+  • Prevents buffer overflow from malformed input
+
+---
+FUNCTION: float getFloatInput(const char* prompt, float minVal, float maxVal)
+---
+PURPOSE:
+  Safely reads a floating-point number from user with validation and retry.
+  Similar to getIntInput but for float values.
+
+INPUT PARAMETERS:
+  • prompt (const char*): Display message to user
+  • minVal (float): Minimum acceptable value
+  • maxVal (float): Maximum acceptable value
+
+RETURN VALUE:
+  float: Valid floating-point number in range [minVal, maxVal]
+
+HOW IT WORKS:
+  1. Display prompt
+  2. Try scanf("%f", ...)
+  3. If fails or out of range: clear buffer, show error, retry
+  4. Return validated float
+
+VALIDATION CHECKS:
+  • scanf() successful
+  • value >= minVal AND value <= maxVal
+
+TIME COMPLEXITY:
+  O(k) where k = retry attempts
+
+EXAMPLE USAGE:
+  float threshold = getFloatInput("Threshold (0.1-100%%): ", 0.1, 100.0);
+
+IMPORTANT NOTES:
+  • Handles floating-point precision
+  • Useful for capacities, loads, percentages
+  • Retries indefinitely until valid input
+
+---
+FUNCTION: char getYesNoInput(const char* prompt)
+---
+PURPOSE:
+  Reads a Y/N response from user, handles case insensitivity.
+  Returns standardized 'Y' or 'N'.
+
+INPUT PARAMETERS:
+  • prompt (const char*): Question to ask user
+                         Example: "Auto-generate random servers"
+
+RETURN VALUE:
+  char: Either 'Y' or 'N' (uppercase)
+
+HOW IT WORKS:
+  1. Display prompt with " (Y/N): " suffix
+  2. Read single character
+  3. Convert to uppercase (y→Y, n→N)
+  4. If neither: show error, retry
+  5. Return standardized 'Y' or 'N'
+
+CASE HANDLING:
+  • Accepts: Y, y, N, n
+  • Rejects: anything else
+  • Returns: always uppercase Y or N
+
+TIME COMPLEXITY:
+  O(k) where k = retry attempts
+
+EXAMPLE USAGE:
+  char response = getYesNoInput("Auto-generate capacities");
+  if (response == 'Y') { ... }
+
+IMPORTANT NOTES:
+  • User input: 'y' → returns 'Y'
+  • User input: 'N' → returns 'N'
+  • Invalid: 'maybe' → error, retry
+
+==============================================================================
+PART 2: GRAPH FUNCTIONS (Enhanced with Validation)
+==============================================================================
+
+---
+FUNCTION: Graph* createGraph(int numServers)
+---
+PURPOSE:
+  Allocates and initializes a graph with numServers nodes.
+  Uses adjacency list representation.
+
+INPUT PARAMETERS:
+  • numServers (int): Number of server nodes in graph (1-20)
+
+RETURN VALUE:
+  Graph*: Pointer to newly allocated Graph structure
+
+HOW IT WORKS:
+  1. Allocate Graph struct on heap
+  2. Set numServers field
+  3. Allocate array of Node* (one per server)
+  4. Initialize all Node* to NULL (no edges yet)
+  5. Return pointer to Graph
+
+ALGORITHM:
+  Graph = [NULL, NULL, NULL, ...]  (numServers entries)
+
+TIME COMPLEXITY:
+  O(numServers) for allocation and initialization
+
+MEMORY ALLOCATION:
+  • 1 × Graph struct
+  • 1 × array of Node* pointers (numServers items)
+
+EXAMPLE USAGE:
+  Graph* network = createGraph(6);
+  // Creates graph with 6 servers, no connections
+
+IMPORTANT NOTES:
+  • All servers start isolated (no edges)
+  • Edges added later with addEdge()
+  • Must be freed with freeGraph()
+
+---
+FUNCTION: int edgeExists(Graph* graph, int src, int dest)
+---
+PURPOSE:
+  Checks if an edge already exists from src to dest.
+  Used to prevent duplicate edges.
+
+INPUT PARAMETERS:
+  • graph (Graph*): Network topology
+  • src (int): Source server ID
+  • dest (int): Destination server ID
+
+RETURN VALUE:
+  int: 1 if edge exists, 0 if not
+
+HOW IT WORKS:
+  1. Start at graph->adjList[src]
+  2. Traverse linked list of neighbors
+  3. If serverId == dest found: return 1
+  4. Reach end of list: return 0
+
+TIME COMPLEXITY:
+  O(degree) where degree = number of neighbors of src
+
+EXAMPLE USAGE:
+  if (!edgeExists(graph, 0, 1)) {
+      addEdge(graph, 0, 1);  // Safe to add
+  }
+
+IMPORTANT NOTES:
+  • Directed graph: (0→1) ≠ (1→0)
+  • Prevents accidental duplicates
+  • Used before every addEdge() call
+
+---
+FUNCTION: int addEdge(Graph* graph, int src, int dest)
+---
+PURPOSE:
+  Adds directed edge from src to dest with validation.
+  Prevents self-edges, out-of-range servers, and duplicates.
+
+INPUT PARAMETERS:
+  • graph (Graph*): Network topology
+  • src (int): Source server (must be 0 to numServers-1)
+  • dest (int): Destination server (must be 0 to numServers-1)
+
+RETURN VALUE:
+  int: 1 if edge added successfully, 0 if validation failed
+
+VALIDATION CHECKS:
+  1. src in range [0, numServers)
+  2. dest in range [0, numServers)
+  3. src ≠ dest (no self-edges)
+  4. Edge doesn't already exist
+
+ERROR MESSAGES:
+  ❌ Server ID out of range! Valid range: 0-N
+  ❌ Cannot add self-edge (Server X → Server X)
+  ❌ Edge already exists (Server X → Server Y)
+
+HOW IT WORKS (if valid):
+  1. Create new Node with serverId = dest
+  2. Insert at front of adjacency list for src
+  3. Print success message
+  4. Return 1
+
+TIME COMPLEXITY:
+  O(degree) for duplicate check + O(1) for insertion
+
+EXAMPLE USAGE:
+  if (addEdge(graph, 0, 2) == 1) {
+      printf("Edge added successfully\n");
+  } else {
+      printf("Edge addition failed\n");
+  }
+
+IMPORTANT NOTES:
+  • Always validates before adding
+  • User-friendly error messages
+  • Safe for interactive input
+
+---
+FUNCTION: void printGraph(Graph* graph)
+---
+PURPOSE:
+  Displays network topology in human-readable format.
+  Shows all servers and their connections.
+
+INPUT PARAMETERS:
+  • graph (Graph*): Network to display
+
+RETURN VALUE:
+  void (no return)
+
+HOW IT WORKS:
+  1. Print header box
+  2. For each server i (0 to numServers-1):
+     a. Print "Server i → "
+     b. Traverse adjacency list
+     c. Print neighbor IDs separated by commas
+     d. If no neighbors: print "(no connections)"
+  3. Print footer box
+
+OUTPUT FORMAT:
+  ┌─── Server Network Topology ───┐
+  │ Server 0 → 1, 3, 5
+  │ Server 1 → 0, 2
+  │ Server 2 → (no connections)
+  │ ...
+  └───────────────────────────────┘
+
+TIME COMPLEXITY:
+  O(V + E) where V = numServers, E = number of edges
+
+EXAMPLE USAGE:
+  printGraph(networkGraph);
+
+IMPORTANT NOTES:
+  • Shows directed edges only
+  • (0→1) displayed, but (1→0) requires separate edge
+  • Used after topology configuration and after each simulation
+
+---
+FUNCTION: void freeGraph(Graph* graph)
+---
+PURPOSE:
+  Deallocates all memory used by graph structure.
+  Prevents memory leaks when graph no longer needed.
+
+INPUT PARAMETERS:
+  • graph (Graph*): Graph to deallocate
+
+RETURN VALUE:
+  void (no return)
+
+HOW IT WORKS:
+  1. For each server i in adjacency list:
+     a. Traverse linked list of neighbors
+     b. Free each Node one by one
+  2. Free the adjacency list array
+  3. Free the Graph struct itself
+
+MEMORY FREED:
+  • All Node structs in all adjacency lists
+  • The Node* array
+  • The Graph struct
+
+TIME COMPLEXITY:
+  O(V + E) for traversal and deallocation
+
+EXAMPLE USAGE:
+  freeGraph(networkGraph);
+  networkGraph = NULL;
+
+IMPORTANT NOTES:
+  • Must be called before program exit
+  • Prevents memory leaks in long-running systems
+  • Set pointer to NULL after freeing (good practice)
+
+==============================================================================
+PART 3: MIN-HEAP FUNCTIONS (Unchanged from Original)
+==============================================================================
+
+All heap functions work identically to the non-interactive version:
+  • createMinHeap(capacity)
+  • insertHeap(heap, serverId, load)
+  • extractMin(heap)
+  • heapifyUp(heap, index)
+  • heapifyDown(heap, index)
+  • updateHeap(heap, serverId, newLoad)
+  • freeMinHeap(heap)
+
+See FUNCTION_DOCUMENTATION.txt for detailed specifications.
+
+==============================================================================
+PART 4: LOAD BALANCING FUNCTIONS (Unchanged from Original)
+==============================================================================
+
+All load balancing functions identical to non-interactive version:
+  • calculateAverageLoad(servers[], numServers)
+  • getLoadPercentage(server)
+  • findMostLoadedServer(servers[], numServers)
+  • findLeastLoadedServer(servers[], numServers)
+  • rebalanceLoads(servers[], numServers, threshold, heap)
+  • printServerStates(servers[], numServers)
+
+See FUNCTION_DOCUMENTATION.txt for detailed specifications.
+
+==============================================================================
+PART 5: NEW INTERACTIVE INPUT FUNCTIONS
+==============================================================================
+
+---
+FUNCTION: void inputServerConfigurations(Server** servers, 
+                                         int* numServers, 
+                                         Graph** graph)
+---
+PURPOSE:
+  Interactively collects server count and capacity configuration.
+  Allocates memory for servers and graph.
+
+INPUT PARAMETERS:
+  • servers (Server**): Pointer to servers array (will be allocated)
+  • numServers (int*): Pointer to store number of servers
+  • graph (Graph**): Pointer to graph (will be allocated)
+
+RETURN VALUE:
+  void (modifies via pointers)
+
+HOW IT WORKS:
+  1. Display "SERVER CONFIGURATION PHASE" header
+  2. Prompt user for number of servers (1-20)
+  3. Allocate memory:
+     - Server array for numServers
+     - Graph with numServers nodes
+  4. Ask capacity mode:
+     - 1 = Auto-generate random (80-120)
+     - 2 = Manual entry per server
+  5. Set each server:
+     - id, capacity, currentLoad = 0
+  6. Display all capacities
+
+INTERACTIVE PROMPTS:
+  "Enter number of servers (1-20): "
+  "Select mode (1-2): "
+  (If mode 2) "Server i capacity (50-200): "
+
+OUTPUT:
+  ✓ Auto-generating...
+  • Server 0: Capacity = 105.42
+  • Server 1: Capacity = 98.15
+  ...
+  
+  OR
+  
+  ✓ Enter capacity for each server:
+  (User enters each)
+
+TIME COMPLEXITY:
+  O(numServers) for allocation and initialization
+
+MEMORY ALLOCATION:
+  • numServers × Server structs
+  • 1 × Graph with numServers nodes
+
+EXAMPLE USAGE:
+  Server* servers;
+  int numServers;
+  Graph* graph;
+  
+  inputServerConfigurations(&servers, &numServers, &graph);
+
+IMPORTANT NOTES:
+  • Modifies through pointers (call-by-reference)
+  • Allocates all necessary structures
+  • Ready for topology configuration after
+
+---
+FUNCTION: void inputGraphTopology(Graph* graph, int numServers)
+---
+PURPOSE:
+  Interactively configures network topology.
+  User chooses: auto-random or manual edge entry.
+
+INPUT PARAMETERS:
+  • graph (Graph*): Graph to populate with edges
+  • numServers (int): Number of servers (for validation)
+
+RETURN VALUE:
+  void (modifies graph)
+
+HOW IT WORKS:
+  1. Display "NETWORK TOPOLOGY CONFIGURATION" header
+  2. Ask: "Auto-generate random network connections"
+  
+  IF YES:
+    a. For each server 0 to numServers-1:
+       - Generate 1-3 random neighbors
+       - Check edge doesn't exist, not self-edge
+       - Call addEdge() if valid
+    b. Print resulting topology
+  
+  IF NO:
+    a. Enter manual mode
+    b. Instructions: "Enter edges as: source destination"
+    c. Loop until user enters -1:
+       - Read two integers: src, dest
+       - Call addEdge(graph, src, dest)
+       - Validate automatically in addEdge()
+    d. Print resulting topology
+
+INTERACTIVE PROMPTS (Auto-generate):
+  "Auto-generate random network connections (Y/N): "
+
+INTERACTIVE PROMPTS (Manual):
+  "Enter edge (or -1 to finish): "
+  (User enters: "0 1" for Server 0 → Server 1)
+
+OUTPUT:
+  ✓ Generating random network topology...
+  ✓ Added edge: Server 0 → 3
+  ✓ Added edge: Server 1 → 0
+  ...
+  
+  ┌─── Server Network Topology ───┐
+  │ Server 0 → 3, 1, 5
+  │ ...
+  └───────────────────────────────┘
+
+TIME COMPLEXITY:
+  O(numServers) for auto mode + O(numEdges) for manual
+
+VALIDATION IN MANUAL MODE:
+  • Server IDs in range [0, numServers-1]
+  • No self-edges
+  • No duplicate edges
+  • Invalid input caught and retried
+
+EXAMPLE USAGE:
+  Graph* graph = createGraph(6);
+  inputGraphTopology(graph, 6);
+  
+  User chooses auto:
+    ✓ Random topology created with 6-18 edges
+  
+  User chooses manual:
+    Enter: 0 1 (adds Server 0 → 1)
+    Enter: 0 2 (adds Server 0 → 2)
+    Enter: -1 (stops input)
+
+IMPORTANT NOTES:
+  • Auto mode prevents most invalid configurations
+  • Manual mode validates every edge
+  • User-friendly error messages guide corrections
+
+---
+FUNCTION: void inputTaskLoads(TaskData* taskData, int numTasks)
+---
+PURPOSE:
+  Interactively configures task load values for simulation.
+  User chooses: auto-random or manual entry.
+
+INPUT PARAMETERS:
+  • taskData (TaskData*): Pointer to TaskData structure
+  • numTasks (int): Number of tasks to configure
+
+RETURN VALUE:
+  void (modifies TaskData via pointer)
+
+HOW IT WORKS:
+  1. Display "TASK LOAD CONFIGURATION" header
+  2. Set taskData->numTasks = numTasks
+  3. Allocate taskData->taskLoads array (numTasks floats)
+  4. Ask: "Task Load Generation Mode"
+     - 1 = Auto-random (5-15 units)
+     - 2 = Manual entry
+  
+  IF MODE 1 (Auto):
+    a. For each task 0 to numTasks-1:
+       - Generate random: 5.0 + rand()*10.0
+       - Store in taskData->taskLoads[i]
+       - Print: "Task i: Load = X.XX"
+  
+  IF MODE 2 (Manual):
+    a. For each task 0 to numTasks-1:
+       - Prompt user: "Task i load (0.1-50): "
+       - Read and validate with getFloatInput()
+       - Store in taskData->taskLoads[i]
+
+INTERACTIVE PROMPTS:
+  "Select mode (1-2): "
+  (If mode 2) "Task i load (0.1-50): "
+
+OUTPUT (Auto):
+  ✓ Generating random task loads...
+  • Task 1: Load = 7.23
+  • Task 2: Load = 11.45
+  ...
+
+OUTPUT (Manual):
+  ✓ Enter load for each task:
+  Task 1 load (0.1-50): (user enters)
+  ...
+
+TIME COMPLEXITY:
+  O(numTasks) for allocation and generation/input
+
+MEMORY ALLOCATION:
+  • numTasks × float (taskData->taskLoads)
+
+EXAMPLE USAGE:
+  TaskData taskData;
+  inputTaskLoads(&taskData, 30);
+  // taskData.taskLoads[0..29] populated
+
+IMPORTANT NOTES:
+  • Manual mode validates each entry (0.1-50 range)
+  • Auto mode creates consistent random values
+  • Later used by runInteractiveSimulation()
+  • Must be freed with free(taskData.taskLoads)
+
+---
+FUNCTION: void inputRebalancingSettings(float* threshold, int* interval)
+---
+PURPOSE:
+  Interactively configures rebalancing parameters.
+  User specifies threshold and interval.
+
+INPUT PARAMETERS:
+  • threshold (float*): Pointer to store imbalance threshold (%)
+  • interval (int*): Pointer to store rebalance interval (tasks)
+
+RETURN VALUE:
+  void (modifies via pointers)
+
+HOW IT WORKS:
+  1. Display "REBALANCING CONFIGURATION" header
+  2. Prompt: "Rebalance threshold (0.1-100%%): "
+     - Read and validate with getFloatInput()
+     - Store in *threshold
+  3. Prompt: "Rebalance interval (every N tasks, 1-100): "
+     - Read and validate with getIntInput()
+     - Store in *interval
+  4. Display confirmation:
+     - Threshold: X.XX%
+     - Interval: Every N tasks
+
+INTERACTIVE PROMPTS:
+  "Rebalance threshold (0.1-100%%): "
+  "Rebalance interval (every N tasks, 1-100): "
+
+OUTPUT:
+  ✓ Rebalancing settings configured:
+    Threshold: 20.00%
+    Interval: Every 5 tasks
+
+TIME COMPLEXITY:
+  O(1) for user input and validation
+
+EXAMPLE USAGE:
+  float threshold;
+  int interval;
+  inputRebalancingSettings(&threshold, &interval);
+  // threshold = 20.0, interval = 5
+
+IMPORTANT NOTES:
+  • Threshold: % imbalance before rebalancing triggered
+  • Interval: After how many tasks to check/rebalance
+  • Lower threshold = more aggressive rebalancing
+  • Smaller interval = more frequent checks
+
+---
+FUNCTION: void printSimulationSummary(Server servers[], int numServers,
+                                      Graph* graph, int numTasks,
+                                      float threshold, int interval)
+---
+PURPOSE:
+  Displays complete simulation configuration before execution.
+  Lets user review all settings in one place.
+
+INPUT PARAMETERS:
+  • servers[] (Server[]): Array of server configurations
+  • numServers (int): Number of servers
+  • graph (Graph*): Network topology
+  • numTasks (int): Number of tasks
+  • threshold (float): Rebalance threshold (%)
+  • interval (int): Rebalance interval (tasks)
+
+RETURN VALUE:
+  void (display only)
+
+HOW IT WORKS:
+  1. Print "SIMULATION CONFIGURATION SUMMARY" header
+  2. Print SYSTEM CONFIGURATION:
+     - Number of servers
+     - Number of tasks
+  3. Print SERVER CAPACITIES:
+     - Server 0: 105.42
+     - Server 1: 98.15
+     - ...
+  4. Print NETWORK TOPOLOGY:
+     - Server 0 → [neighbors...]
+     - ...
+  5. Print REBALANCING SETTINGS:
+     - Threshold: X.XX%
+     - Interval: Every N tasks
+
+OUTPUT FORMAT:
+  ╔════════════════════════════════════════╗
+  ║     SIMULATION CONFIGURATION SUMMARY    ║
+  ╚════════════════════════════════════════╝
+  
+  📊 SYSTEM CONFIGURATION
+     • Number of servers: 6
+     • Number of tasks: 30
+  
+  📦 SERVER CAPACITIES
+     • Server 0: 105.42
+     ...
+  
+  🌐 NETWORK TOPOLOGY
+     • Server 0 → 3, 1, 5
+     ...
+  
+  ⚙️  REBALANCING SETTINGS
+     • Threshold: 20.00%
+     • Interval: Every 5 tasks
+
+TIME COMPLEXITY:
+  O(V + E) for printing graph
+
+EXAMPLE USAGE:
+  printSimulationSummary(servers, 6, graph, 30, 20.0, 5);
+
+IMPORTANT NOTES:
+  • User sees this BEFORE simulation starts
+  • Chance to catch configuration errors
+  • Followed by "Start simulation? (Y/N)" prompt
+
+---
+FUNCTION: void runInteractiveSimulation(Server servers[], Graph* graph,
+                                        int numServers, TaskData* taskData,
+                                        float threshold, int interval)
+---
+PURPOSE:
+  Executes the interactive simulation with step-by-step control.
+  User can assign tasks one at a time, all at once, or manage manually.
+
+INPUT PARAMETERS:
+  • servers[] (Server[]): Array of servers
+  • graph (Graph*): Network topology (informational)
+  • numServers (int): Number of servers
+  • taskData (TaskData*): Pre-configured task loads
+  • threshold (float): Rebalance threshold (%)
+  • interval (int): Rebalance interval
+
+RETURN VALUE:
+  void (modifies servers[] via side effects)
+
+HOW IT WORKS:
+
+  Initialization:
+    1. Create min-heap with all servers
+    2. Insert each server with load = 0
+    3. Set tasksAssigned = 0
+  
+  Main Loop (while tasksAssigned < numTasks):
+    1. Display menu:
+       1. Assign next task
+       2. Assign all remaining tasks
+       3. Trigger manual rebalance
+       4. Show server status
+       5. Exit simulation
+    
+    2. Get user choice and execute:
+    
+       CHOICE 1 - Assign next task:
+         a. Get current task load from taskData
+         b. Extract min-load server from heap
+         c. Assign task: server.currentLoad += taskLoad
+         d. Reinsert server into heap
+         e. Display assignment details
+         f. If (tasksAssigned % interval == 0): rebalance
+         g. Increment tasksAssigned
+       
+       CHOICE 2 - Assign all remaining:
+         a. Loop from tasksAssigned to numTasks:
+            - Repeat CHOICE 1 steps b-g
+         b. Exit loop when done
+       
+       CHOICE 3 - Trigger manual rebalance:
+         a. Call rebalanceLoads() immediately
+         b. No automatic check needed
+       
+       CHOICE 4 - Show server status:
+         a. Call printServerStates()
+         b. Display all server loads
+       
+       CHOICE 5 - Exit:
+         a. Set tasksAssigned = numTasks
+         b. Break loop
+  
+  Finalization:
+    1. Print "FINAL LOAD DISTRIBUTION"
+    2. Call printServerStates()
+    3. Calculate statistics:
+       - Average load
+       - Max/min loads
+       - Imbalance
+    4. Display summary assessment
+    5. Free heap
+
+INTERACTIVE MENU:
+  ┌─── Simulation Menu ───┐
+  │ 1. Assign next task
+  │ 2. Assign all remaining tasks
+  │ 3. Trigger manual rebalance
+  │ 4. Show server status
+  │ 5. Exit simulation
+  └───────────────────────┘
+
+TASK ASSIGNMENT OUTPUT:
+  ✓ Task 1 assigned to Server 0
+    Load: 9.90/98.05 (10.1%)
+
+REBALANCING OUTPUT:
+  ╔════════════════════════════════════╗
+  ║ ⚠️  REBALANCING TRIGGERED ⚠️       ║
+  ╚════════════════════════════════════╝
+     Imbalance: 23.45% (threshold: 20.00%)
+     Server 3 (28.5%) → Server 1 (5.2%)
+     Migrating 8.75 load units
+     ✓ Rebalancing complete
+
+FINAL OUTPUT:
+  📈 Final Statistics:
+     Average Load: 51.23
+     Max Load: 56.59 | Min Load: 48.27
+     Load Difference: 8.32
+  
+  ✓✓✓ System is WELL-BALANCED ✓✓✓
+
+TIME COMPLEXITY:
+  Per task assignment: O(log n) for heap operations
+  Total with k tasks: O(k log n)
+  Manual rebalance: O(n) 
+  Full simulation (all k tasks): O(k log n + rebalances × n)
+
+EXAMPLE USAGE:
+  runInteractiveSimulation(servers, graph, 6, &taskData, 20.0, 5);
+  
+  User menu interaction:
+    Choose: 1 (assign one)
+    Choose: 2 (assign rest)
+    Choose: 4 (show status)
+    Choose: 5 (exit)
+
+IMPORTANT NOTES:
+  • User has full control over simulation flow
+  • Can observe heap behavior step-by-step
+  • Manual rebalance lets user test algorithm
+  • All original algorithms unchanged
+  • Can exit before all tasks assigned
+
+==============================================================================
+USAGE EXAMPLE WALKTHROUGH
+==============================================================================
+
+Program Execution Flow:
+
+1. STARTUP
+   ╔════════════════════════════════════════════════════════════╗
+   ║   DYNAMIC LOAD BALANCER - INTERACTIVE VERSION              ║
+   │   Distributed System Simulation                            │
+   ╚════════════════════════════════════════════════════════════╝
+
+2. SERVER CONFIGURATION
+   ╔════════════════════════════════════════════╗
+   ║     SERVER CONFIGURATION PHASE             ║
+   ╚════════════════════════════════════════════╝
+   
+   Enter number of servers (1-20): 6
+   
+   🔹 Server Capacity Configuration
+   1. Auto-generate random capacities (80-120)
+   2. Enter each server capacity manually
+   Select mode (1-2): 1
+   
+   ✓ Generating random capacities...
+   Server 0: Capacity = 105.42
+   ...
+
+3. TASK CONFIGURATION
+   Enter number of tasks (1-1000): 30
+   
+   ╔════════════════════════════════════════════╗
+   ║       TASK LOAD CONFIGURATION              ║
+   ╚════════════════════════════════════════════╝
+   
+   Select mode (1-2): 1
+   ✓ Generating random task loads...
+
+4. REBALANCING SETTINGS
+   Rebalance threshold (0.1-100%%): 20
+   Rebalance interval (every N tasks, 1-100): 5
+
+5. TOPOLOGY
+   Auto-generate random network connections (Y/N): Y
+   ✓ Generating random network topology...
+
+6. SUMMARY & CONFIRMATION
+   ╔════════════════════════════════════════════╗
+   ║     SIMULATION CONFIGURATION SUMMARY        ║
+   ╚════════════════════════════════════════════╝
+   
+   📊 SYSTEM CONFIGURATION
+      • Number of servers: 6
+      • Number of tasks: 30
+   
+   ... (all settings)
+   
+   Start simulation (Y/N): Y
+
+7. INTERACTIVE SIMULATION
+   ┌─── Simulation Menu ───┐
+   │ 1. Assign next task
+   │ 2. Assign all remaining tasks
+   │ 3. Trigger manual rebalance
+   │ 4. Show server status
+   │ 5. Exit simulation
+   └───────────────────────┘
+   
+   Choose action (1-5): 2
+   
+   ✓ Assigning all remaining 30 tasks...
+   Task  1 → Server 0 | Load: 9.90/105.42 (9.4%)
+   Task  2 → Server 5 | Load: 12.34/96.71 (12.8%)
+   ...
+   Task 30 → Server 2 | Load: 56.59/111.98 (50.5%)
+
+8. FINAL STATE
+   ╔════════════════════════════════════════════╗
+   ║    FINAL LOAD DISTRIBUTION                  ║
+   ╚════════════════════════════════════════════╝
+   
+   📈 Final Statistics:
+      Average Load: 51.23
+      Max Load: 56.59 | Min Load: 48.27
+      Load Difference: 8.32
+   
+   ✓✓✓ System is WELL-BALANCED ✓✓✓
+
+9. CLEANUP
+   ✓ Resources freed. Program terminated.
+
+==============================================================================

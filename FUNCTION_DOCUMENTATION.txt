@@ -1,0 +1,976 @@
+================================================================================
+                    DYNAMIC LOAD BALANCER - FUNCTION DOCUMENTATION
+                              Complete Reference Guide
+================================================================================
+
+This document provides detailed documentation for every function in load_balancer.c
+including purpose, parameters, return values, and how each function works.
+
+================================================================================
+                              TABLE OF CONTENTS
+================================================================================
+
+1. GRAPH FUNCTIONS (Lines 50-120)
+2. MIN HEAP FUNCTIONS (Lines 121-250)
+3. LOAD BALANCING FUNCTIONS (Lines 251-380)
+4. SIMULATION FUNCTIONS (Lines 381-500)
+5. MAIN ORCHESTRATION (Lines 501-550)
+
+================================================================================
+                         1. GRAPH FUNCTIONS
+================================================================================
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: Graph* createGraph(int numServers)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Creates a new graph structure representing the network topology of servers.
+  Uses an adjacency list representation where each server is a node that can
+  have connections to other servers.
+
+INPUT PARAMETERS:
+  - numServers (int): Total number of server nodes in the graph
+                      Typical range: 5-100+
+
+RETURN VALUE:
+  - Pointer to newly allocated Graph structure
+  - Graph->numServers: Set to numServers parameter
+  - Graph->adjList: Array of adjacency lists initialized to NULL
+
+HOW IT WORKS:
+  1. Allocate memory for Graph struct
+  2. Store numServers in graph->numServers
+  3. Allocate array of numServers Node pointers (the adjacency lists)
+  4. Initialize all adjacency list heads to NULL
+  5. Return pointer to the newly created graph
+
+TIME COMPLEXITY: O(n) where n = numServers
+
+MEMORY ALLOCATED:
+  - 1 Graph struct: sizeof(Graph) bytes
+  - 1 array of Node pointers: numServers * sizeof(Node*) bytes
+
+EXAMPLE USAGE:
+  Graph* network = createGraph(6);
+  // Creates a graph with 6 server nodes, all with empty adjacency lists
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: void addEdge(Graph* graph, int src, int dest)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Adds a directed edge from source server to destination server in the graph.
+  This represents a network connection between two servers.
+
+INPUT PARAMETERS:
+  - graph (Graph*): Pointer to the graph structure
+  - src (int): Source server ID (index of origin server)
+               Valid range: 0 to (numServers - 1)
+  - dest (int): Destination server ID (index of target server)
+                Valid range: 0 to (numServers - 1)
+
+RETURN VALUE:
+  - void (no return value)
+  - Side effect: Modifies graph->adjList[src] by prepending new Node
+
+HOW IT WORKS:
+  1. Create a new Node struct
+  2. Set Node->serverId = dest
+  3. Insert new node at HEAD of adjacency list for source server
+  4. New node points to old head (if any)
+  5. Update adjList[src] to point to new node
+
+TIME COMPLEXITY: O(1) - constant time insertion at head
+
+MEMORY ALLOCATED:
+  - 1 Node struct: sizeof(Node) bytes
+
+IMPORTANT NOTES:
+  - Creates a DIRECTED edge (src → dest)
+  - Does NOT create reverse edge automatically
+  - To create bidirectional connection: call twice
+    addEdge(graph, A, B); // A → B
+    addEdge(graph, B, A); // B → A
+
+EXAMPLE USAGE:
+  Graph* network = createGraph(4);
+  addEdge(network, 0, 1);  // Server 0 can reach Server 1
+  addEdge(network, 0, 3);  // Server 0 can reach Server 3
+  addEdge(network, 1, 2);  // Server 1 can reach Server 2
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: void printGraph(Graph* graph)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Prints the entire graph structure for visualization and debugging.
+  Shows all servers and their connections in a readable format.
+
+INPUT PARAMETERS:
+  - graph (Graph*): Pointer to the graph structure to print
+
+RETURN VALUE:
+  - void (no return value)
+  - Side effect: Prints to stdout
+
+HOW IT WORKS:
+  1. Print header: "--- Server Network Topology ---"
+  2. For each server (0 to numServers-1):
+     a. Print "Server X → "
+     b. Traverse adjacency list for that server
+     c. Print each connected server ID followed by space
+     d. Print newline
+  3. Result shows adjacency list for all servers
+
+TIME COMPLEXITY: O(V + E) where V = numServers, E = number of edges
+
+OUTPUT FORMAT:
+  --- Server Network Topology ---
+  Server 0 → 3 1 5
+  Server 1 → 4 2
+  Server 2 → 5
+  Server 3 → 2
+  Server 4 → 0 1
+  Server 5 → (empty if no outgoing connections)
+
+EXAMPLE USAGE:
+  Graph* network = createGraph(6);
+  // ... add edges ...
+  printGraph(network);  // Visualize the network topology
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: void freeGraph(Graph* graph)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Deallocates all memory associated with a graph structure.
+  Prevents memory leaks by freeing all Node structs and the graph itself.
+
+INPUT PARAMETERS:
+  - graph (Graph*): Pointer to the graph structure to free
+
+RETURN VALUE:
+  - void (no return value)
+  - Side effect: All memory freed, graph pointer becomes invalid
+
+HOW IT WORKS:
+  1. For each server (0 to numServers-1):
+     a. Get pointer to first Node in adjacency list
+     b. While not at end of list:
+        - Save current Node pointer
+        - Move to next Node
+        - Free the saved Node
+  2. Free the adjacency list array (adjList)
+  3. Free the Graph struct itself
+
+TIME COMPLEXITY: O(V + E) where V = numServers, E = number of edges
+
+MEMORY FREED:
+  - All E Node structs in all adjacency lists
+  - 1 array of Node pointers (the adjList)
+  - 1 Graph struct
+
+IMPORTANT NOTES:
+  - MUST be called before program termination
+  - Do NOT use graph pointer after calling freeGraph()
+  - This is critical to prevent memory leaks
+
+EXAMPLE USAGE:
+  Graph* network = createGraph(6);
+  // ... use graph ...
+  freeGraph(network);  // Clean up all memory
+
+================================================================================
+                        2. MIN HEAP FUNCTIONS
+================================================================================
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: MinHeap* createMinHeap(int capacity)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Creates a new min-heap data structure for maintaining servers in order
+  of their current load. This enables O(log n) extraction of least-loaded server.
+
+INPUT PARAMETERS:
+  - capacity (int): Maximum number of elements the heap can hold
+                    Usually set to NUM_SERVERS (6 in our case)
+
+RETURN VALUE:
+  - Pointer to newly allocated MinHeap structure
+  - heap->size: Set to 0 (heap initially empty)
+  - heap->capacity: Set to capacity parameter
+
+HOW IT WORKS:
+  1. Allocate memory for MinHeap struct
+  2. Allocate array of HeapNode structs with size = capacity
+  3. Initialize size to 0 (heap is empty)
+  4. Store capacity value
+  5. Return pointer to heap
+
+TIME COMPLEXITY: O(1)
+
+MEMORY ALLOCATED:
+  - 1 MinHeap struct: sizeof(MinHeap) bytes
+  - 1 array of HeapNode: capacity * sizeof(HeapNode) bytes
+
+STRUCTURE:
+  MinHeap {
+    HeapNode* arr;     // Dynamic array of nodes
+    int size;          // Current number of elements
+    int capacity;      // Maximum capacity
+  }
+
+EXAMPLE USAGE:
+  MinHeap* heap = createMinHeap(6);
+  // Creates heap that can hold up to 6 servers
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: void swap(HeapNode* a, HeapNode* b)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Swaps two HeapNode structures in memory.
+  Used internally by heapifyUp and heapifyDown to rearrange heap.
+
+INPUT PARAMETERS:
+  - a (HeapNode*): Pointer to first node to swap
+  - b (HeapNode*): Pointer to second node to swap
+
+RETURN VALUE:
+  - void (no return value)
+  - Side effect: Contents of a and b are exchanged
+
+HOW IT WORKS:
+  1. Create temporary HeapNode variable
+  2. Copy a's contents to temp
+  3. Copy b's contents to a
+  4. Copy temp's contents to b
+
+TIME COMPLEXITY: O(1)
+
+EXAMPLE USAGE:
+  swap(&heap->arr[0], &heap->arr[1]);  // Exchange first two elements
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: void heapifyUp(MinHeap* heap, int index)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Moves a node UP the heap tree to maintain min-heap property.
+  Called after inserting a new element or updating existing element's value.
+  Ensures parent always has smaller load than children.
+
+INPUT PARAMETERS:
+  - heap (MinHeap*): Pointer to the heap structure
+  - index (int): Array index of the node to heapify up
+                 Valid range: 0 to (heap->size - 1)
+
+RETURN VALUE:
+  - void (no return value)
+  - Side effect: Heap structure is reorganized
+
+HOW IT WORKS:
+  1. If index is 0 (root), return (can't go higher)
+  2. Calculate parent index: parentIdx = (index - 1) / 2
+  3. Compare current node's load with parent's load
+  4. If current < parent:
+     a. Swap current and parent
+     b. Recursively heapifyUp on parent index
+  5. If current >= parent, stop (heap property satisfied)
+
+TIME COMPLEXITY: O(log n) - in worst case, move from leaf to root
+
+INVARIANT MAINTAINED:
+  - After heapifyUp: parent.load <= child.load for all ancestors
+  - Least-loaded node eventually becomes or stays at top
+
+EXAMPLE USAGE:
+  // After inserting new element at end
+  insertHeap(heap, serverId, load);
+  // (heapifyUp is called internally by insertHeap)
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: void heapifyDown(MinHeap* heap, int index)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Moves a node DOWN the heap tree to maintain min-heap property.
+  Called after removing root or updating a node to larger value.
+  Ensures child nodes have greater load than parent.
+
+INPUT PARAMETERS:
+  - heap (MinHeap*): Pointer to the heap structure
+  - index (int): Array index of node to heapify down
+                 Valid range: 0 to (heap->size - 1)
+
+RETURN VALUE:
+  - void (no return value)
+  - Side effect: Heap structure is reorganized
+
+HOW IT WORKS:
+  1. Start with "smallest" = index
+  2. Calculate left child index: leftChild = 2 * index + 1
+  3. Calculate right child index: rightChild = 2 * index + 2
+  4. If leftChild exists and leftChild.load < smallest.load:
+     smallest = leftChild
+  5. If rightChild exists and rightChild.load < smallest.load:
+     smallest = rightChild
+  6. If smallest != index (child is smaller than parent):
+     a. Swap index with smallest
+     b. Recursively heapifyDown on smallest
+  7. If smallest == index, stop (heap property satisfied)
+
+TIME COMPLEXITY: O(log n) - maximum distance from root to leaf
+
+INVARIANT MAINTAINED:
+  - After heapifyDown: parent.load <= min(leftChild.load, rightChild.load)
+
+EXAMPLE USAGE:
+  // After extracting min and moving last element to root
+  extractMin(heap);
+  // (heapifyDown is called internally by extractMin)
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: void insertHeap(MinHeap* heap, int serverId, float load)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Inserts a new server into the min-heap with given load value.
+  Maintains min-heap property by calling heapifyUp.
+
+INPUT PARAMETERS:
+  - heap (MinHeap*): Pointer to the heap structure
+  - serverId (int): ID of server being inserted
+                    Valid range: 0 to (NUM_SERVERS - 1)
+  - load (float): Current load value for this server
+                  Typical range: 0.0 to capacity
+
+RETURN VALUE:
+  - void (no return value)
+  - Side effect: heap->size increases by 1, element added to heap
+
+HOW IT WORKS:
+  1. Check if heap->size < heap->capacity (space available)
+     If not, print error and return
+  2. Store serverId and load in array at position [size]
+  3. Call heapifyUp(heap, size) to restore min-heap property
+  4. Increment heap->size
+
+TIME COMPLEXITY: O(log n) - due to heapifyUp
+
+MEMORY SIDE EFFECT:
+  - Uses pre-allocated array space
+  - No new allocation (assumed array was allocated in createMinHeap)
+
+EXAMPLE USAGE:
+  MinHeap* heap = createMinHeap(6);
+  insertHeap(heap, 0, 0.0);  // Insert server 0 with load 0
+  insertHeap(heap, 1, 5.3);  // Insert server 1 with load 5.3
+  insertHeap(heap, 2, 3.1);  // Insert server 2 with load 3.1
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: HeapNode extractMin(MinHeap* heap)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Removes and returns the server with minimum (least) load from heap.
+  Most important operation for load balancing - finds least-loaded server
+  to assign next task.
+
+INPUT PARAMETERS:
+  - heap (MinHeap*): Pointer to the heap structure
+
+RETURN VALUE:
+  - HeapNode struct containing:
+    - serverId: ID of least-loaded server
+    - load: Its current load value
+
+HOW IT WORKS:
+  1. Save the root node (minimum) to variable "min"
+  2. Move last element in heap to position 0 (root)
+  3. Decrement heap->size (remove last element)
+  4. If heap still has elements (size > 0):
+     Call heapifyDown(heap, 0) to restore min-heap property
+  5. Return the saved minimum node
+
+TIME COMPLEXITY: O(log n) - due to heapifyDown
+
+PRECONDITION:
+  - heap->size must be > 0 (heap cannot be empty)
+
+POSTCONDITION:
+  - heap->size decreases by 1
+  - Remaining elements satisfy min-heap property
+
+EXAMPLE USAGE:
+  MinHeap* heap = createMinHeap(6);
+  // ... insert servers ...
+  HeapNode leastLoaded = extractMin(heap);
+  printf("Least-loaded server: %d with load %.2f\n", 
+         leastLoaded.serverId, leastLoaded.load);
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: void updateHeap(MinHeap* heap, int serverId, float newLoad)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Updates the load value of an existing server in the heap.
+  Used when rebalancing or after assigning a task.
+  Restores min-heap property after value change.
+
+INPUT PARAMETERS:
+  - heap (MinHeap*): Pointer to the heap structure
+  - serverId (int): ID of server to update
+                    Must exist in heap
+  - newLoad (float): New load value for this server
+
+RETURN VALUE:
+  - void (no return value)
+  - Side effect: Updates heap->arr[found_index].load, reorganizes heap
+
+HOW IT WORKS:
+  1. LINEAR SEARCH: Find array index where serverId is located
+     Loop through heap->arr[0..size-1] until match found
+  2. If not found: print error and return
+  3. Update the found node's load to newLoad
+  4. Check if update requires heapifyUp or heapifyDown:
+     a. Calculate parent index: parentIdx = (index - 1) / 2
+     b. If newLoad < parent.load: heapifyUp (moved up)
+     c. Else: heapifyDown (moved down or stayed)
+
+TIME COMPLEXITY: O(n) average case - linear search + O(log n) heapify
+                 O(n) in worst case due to linear search
+
+LIMITATION:
+  - Linear search is inefficient for large heaps
+  - Could be optimized with hash table mapping serverId to index
+
+EXAMPLE USAGE:
+  // After assigning task to server 2, its load increases
+  updateHeap(heap, 2, 25.3);  // Update server 2's load to 25.3
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: void freeMinHeap(MinHeap* heap)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Deallocates all memory associated with min-heap structure.
+  Prevents memory leaks by freeing heap array and struct.
+
+INPUT PARAMETERS:
+  - heap (MinHeap*): Pointer to the heap structure to free
+
+RETURN VALUE:
+  - void (no return value)
+  - Side effect: All memory freed, heap pointer becomes invalid
+
+HOW IT WORKS:
+  1. Free the HeapNode array: free(heap->arr)
+  2. Free the MinHeap struct: free(heap)
+
+TIME COMPLEXITY: O(1)
+
+MEMORY FREED:
+  - 1 array of HeapNode structs (capacity * sizeof(HeapNode) bytes)
+  - 1 MinHeap struct (sizeof(MinHeap) bytes)
+
+IMPORTANT NOTES:
+  - MUST be called before program termination
+  - Do NOT use heap pointer after calling freeMinHeap()
+
+EXAMPLE USAGE:
+  MinHeap* heap = createMinHeap(6);
+  // ... use heap ...
+  freeMinHeap(heap);  // Clean up
+
+================================================================================
+                    3. LOAD BALANCING FUNCTIONS
+================================================================================
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: float calculateAverageLoad(Server servers[], int numServers)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Calculates the average current load across all servers.
+  Used to determine if system needs rebalancing.
+
+INPUT PARAMETERS:
+  - servers (Server[]): Array of Server structs
+  - numServers (int): Number of servers in array (6 in our case)
+
+RETURN VALUE:
+  - float: Average load = (sum of all loads) / numServers
+
+HOW IT WORKS:
+  1. Initialize totalLoad = 0.0
+  2. For each server:
+     totalLoad += server.currentLoad
+  3. Return totalLoad / numServers
+
+TIME COMPLEXITY: O(n) where n = numServers
+
+EXAMPLE USAGE:
+  float avgLoad = calculateAverageLoad(servers, 6);
+  printf("Average system load: %.2f\n", avgLoad);
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: float getLoadPercentage(Server server)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Converts a server's load to percentage of its capacity.
+  Used for displaying server status in human-readable format.
+
+INPUT PARAMETERS:
+  - server (Server): Single Server struct (passed by value)
+
+RETURN VALUE:
+  - float: Percentage = (currentLoad / capacity) * 100
+
+FORMULA:
+  loadPercentage = (server.currentLoad / server.capacity) * 100.0
+
+TIME COMPLEXITY: O(1)
+
+EXAMPLE:
+  Server s = {id: 0, capacity: 100.0, currentLoad: 35.5};
+  float percent = getLoadPercentage(s);
+  // Returns: 35.5
+  // Display: "Server 0 is at 35.5% capacity"
+
+EXAMPLE USAGE:
+  float percent = getLoadPercentage(servers[0]);
+  printf("Server 0: %.1f%%\n", percent);
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: int findMostLoadedServer(Server servers[], int numServers)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Finds the server with the highest current load.
+  Used during rebalancing to identify overloaded servers.
+
+INPUT PARAMETERS:
+  - servers (Server[]): Array of Server structs
+  - numServers (int): Number of servers in array
+
+RETURN VALUE:
+  - int: Array index of server with maximum load
+          Valid range: 0 to (numServers - 1)
+
+HOW IT WORKS:
+  1. Initialize mostLoaded = 0 and maxLoad = servers[0].currentLoad
+  2. For each server from index 1 to numServers-1:
+     If server.currentLoad > maxLoad:
+       - Update maxLoad = server.currentLoad
+       - Update mostLoaded = current index
+  3. Return mostLoaded
+
+TIME COMPLEXITY: O(n) where n = numServers
+
+EXAMPLE USAGE:
+  int overloadedIdx = findMostLoadedServer(servers, 6);
+  printf("Most loaded server: Server %d with load %.2f\n",
+         overloadedIdx, servers[overloadedIdx].currentLoad);
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: int findLeastLoadedServer(Server servers[], int numServers)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Finds the server with the lowest current load.
+  Used during rebalancing to identify underloaded servers.
+
+INPUT PARAMETERS:
+  - servers (Server[]): Array of Server structs
+  - numServers (int): Number of servers in array
+
+RETURN VALUE:
+  - int: Array index of server with minimum load
+          Valid range: 0 to (numServers - 1)
+
+HOW IT WORKS:
+  1. Initialize leastLoaded = 0 and minLoad = servers[0].currentLoad
+  2. For each server from index 1 to numServers-1:
+     If server.currentLoad < minLoad:
+       - Update minLoad = server.currentLoad
+       - Update leastLoaded = current index
+  3. Return leastLoaded
+
+TIME COMPLEXITY: O(n) where n = numServers
+
+EXAMPLE USAGE:
+  int underloadedIdx = findLeastLoadedServer(servers, 6);
+  printf("Least loaded server: Server %d with load %.2f\n",
+         underloadedIdx, servers[underloadedIdx].currentLoad);
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: void rebalanceLoads(Server servers[], int numServers, 
+                              float threshold, MinHeap* heap)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Automatically rebalances loads across servers if imbalance exceeds threshold.
+  Migrates load from overloaded to underloaded servers to maintain equilibrium.
+
+INPUT PARAMETERS:
+  - servers (Server[]): Array of Server structs
+  - numServers (int): Number of servers in array
+  - threshold (float): Imbalance percentage threshold (20.0 in our case)
+  - heap (MinHeap*): Pointer to heap (updated after rebalancing)
+
+RETURN VALUE:
+  - void (no return value)
+  - Side effect: May modify servers[].currentLoad and heap structure
+
+HOW IT WORKS:
+  1. Calculate average system load
+  2. Find mostLoadedIdx = server with highest load
+  3. Find leastLoadedIdx = server with lowest load
+  4. Calculate mostLoadedPercent = getLoadPercentage(mostLoaded server)
+  5. Calculate leastLoadedPercent = getLoadPercentage(leastLoaded server)
+  6. Calculate imbalance = mostLoadedPercent - leastLoadedPercent
+  7. If imbalance > threshold:
+     a. Calculate migration amount = (mostLoaded.load - avgLoad) * 0.5
+     b. Print rebalancing alert message
+     c. Decrease mostLoaded server's load by migration amount
+     d. Increase leastLoaded server's load by migration amount
+     e. Update both servers in heap using updateHeap()
+     f. Print completion message
+  8. If imbalance <= threshold: do nothing (system is balanced)
+
+TIME COMPLEXITY: O(n) - finding servers + O(n) for heap updates = O(n)
+
+PARAMETERS EXPLAINED:
+  - threshold: Rebalancing only triggers if percentage difference > threshold
+  - 20% threshold means: don't rebalance if loads within 20% of each other
+  - 50% migration: moves half of the excess load above average
+
+EXAMPLE SCENARIO:
+  Servers: [100, 15, 50, 60, 45, 40] out of capacity 100
+  Average: 51.67
+  Most loaded: Server 0 (100%)
+  Least loaded: Server 1 (15%)
+  Imbalance: 85% > 20% → REBALANCE!
+  Migration: (100 - 51.67) * 0.5 = 24.16 units
+  Result: [75.84, 39.16, ...]
+
+EXAMPLE USAGE:
+  rebalanceLoads(servers, 6, 20.0, heap);
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: void printServerStates(Server servers[], int numServers)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Prints current load state of all servers for monitoring and debugging.
+  Shows load values, capacities, and percentages for each server.
+
+INPUT PARAMETERS:
+  - servers (Server[]): Array of Server structs
+  - numServers (int): Number of servers in array
+
+RETURN VALUE:
+  - void (no return value)
+  - Side effect: Prints to stdout
+
+HOW IT WORKS:
+  1. Print header: "--- Current Server States ---"
+  2. For each server:
+     a. Calculate percent = getLoadPercentage(server)
+     b. Print formatted line:
+        "Server X: Load = LOAD/CAPACITY (PERCENT%)"
+  3. Calculate and print average load
+  4. Print footer (blank line)
+
+TIME COMPLEXITY: O(n) where n = numServers
+
+OUTPUT FORMAT:
+  --- Current Server States ---
+  Server 0: Load =  52.76/ 98.05 (53.8%)
+  Server 1: Load =  51.99/119.24 (43.6%)
+  Server 2: Load =  48.99/111.98 (43.7%)
+  Server 3: Load =  48.81/109.34 (44.6%)
+  Server 4: Load =  48.27/105.06 (45.9%)
+  Server 5: Load =  56.59/ 96.71 (58.5%)
+  
+  Average Load: 51.23
+
+EXAMPLE USAGE:
+  printServerStates(servers, 6);
+
+================================================================================
+                       4. SIMULATION FUNCTIONS
+================================================================================
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: void simulateTaskAssignment(Server servers[], Graph* graph, 
+                                      MinHeap* heap, int numTasks)
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Main simulation loop that assigns tasks to servers using load balancing.
+  Processes multiple tasks sequentially and triggers rebalancing periodically.
+
+INPUT PARAMETERS:
+  - servers (Server[]): Array of Server structs to assign tasks to
+  - graph (Graph*): Network topology (for future use in enhancements)
+  - heap (MinHeap*): Min-heap for efficient server selection
+  - numTasks (int): Number of tasks to simulate (30 in our case)
+
+RETURN VALUE:
+  - void (no return value)
+  - Side effect: Modifies servers[].currentLoad, prints task assignments
+
+HOW IT WORKS:
+  1. Print header: "--- Assigning N Tasks Dynamically ---"
+  2. For each task from 1 to numTasks:
+     a. Generate random task load between MIN_TASK_LOAD and MAX_TASK_LOAD
+        taskLoad = MIN_TASK_LOAD + rand()/(float)RAND_MAX * 
+                   (MAX_TASK_LOAD - MIN_TASK_LOAD)
+     b. Extract minimum load server from heap: leastLoadedServer
+     c. Add taskLoad to that server's currentLoad
+     d. Calculate new load percentage
+     e. Print assignment details:
+        "Task N → Server X | Load: LOAD/CAPACITY (PERCENT%)"
+     f. Reinsert updated server back into heap with new load
+     g. Every REBALANCE_INTERVAL tasks (every 5 tasks):
+        Call rebalanceLoads(servers, NUM_SERVERS, REBALANCE_THRESHOLD, heap)
+
+TIME COMPLEXITY: O(n * log m) where n = numTasks, m = numServers
+                 Each task: O(log m) for heap operations
+                 Rebalancing: O(m) every 5 tasks
+
+FLOW DIAGRAM:
+  For each task:
+    1. Generate random load (5-15 units)
+    2. extractMin(heap) → get least-loaded server
+    3. server.load += taskLoad
+    4. insertHeap(heap, server_id, new_load)
+    5. printTaskAssignment()
+    6. If (task % 5 == 0): rebalanceLoads()
+
+EXAMPLE OUTPUT:
+  --- Assigning 30 Tasks Dynamically ---
+  Task  1 → Server 0 | Load:   9.90/ 98.05 (10.1%)
+  Task  2 → Server 5 | Load:  14.57/ 96.71 (15.1%)
+  Task  3 → Server 1 | Load:  10.86/119.24 (9.1%)
+  ...
+  Task 30 → Server 5 | Load:  56.59/ 96.71 (58.5%)
+
+EXAMPLE USAGE:
+  simulateTaskAssignment(servers, network, heap, 30);
+
+================================================================================
+                      5. MAIN ORCHESTRATION
+================================================================================
+
+─────────────────────────────────────────────────────────────────────────────
+FUNCTION: int main()
+─────────────────────────────────────────────────────────────────────────────
+
+PURPOSE:
+  Entry point of the program. Orchestrates entire simulation:
+  initializes data structures, runs simulation, displays results, cleans up.
+
+PARAMETERS:
+  - None (int main())
+
+RETURN VALUE:
+  - int: Exit code (0 for success)
+
+HOW IT WORKS:
+
+  ════════════════════════════════════════════════════════════
+  PHASE 1: INITIALIZATION
+  ════════════════════════════════════════════════════════════
+  1. Print welcome banner with ASCII box
+  2. Seed random number generator: srand(time(NULL))
+     - Ensures different results on each run
+  3. Create Server array:
+     - Initialize 6 servers
+     - Assign random capacities (80-120)
+     - Set initial load to 0
+     - Print each server's capacity
+  
+  ════════════════════════════════════════════════════════════
+  PHASE 2: BUILD NETWORK TOPOLOGY
+  ════════════════════════════════════════════════════════════
+  4. Create graph: networkGraph = createGraph(NUM_SERVERS)
+  5. Add random edges (connections between servers):
+     - For each server:
+       - Generate 1-3 random neighbors
+       - Add directed edges to them
+  6. Print network topology: printGraph(networkGraph)
+  
+  ════════════════════════════════════════════════════════════
+  PHASE 3: CREATE PRIORITY QUEUE
+  ════════════════════════════════════════════════════════════
+  7. Create min-heap: loadHeap = createMinHeap(NUM_SERVERS)
+  8. Insert all servers with initial load 0:
+     - For each server 0 to NUM_SERVERS-1:
+       insertHeap(loadHeap, i, 0.0)
+  9. Print confirmation: "✓ Min-heap initialized"
+  
+  ════════════════════════════════════════════════════════════
+  PHASE 4: RUN SIMULATION
+  ════════════════════════════════════════════════════════════
+  10. Call simulateTaskAssignment():
+      - Assigns 30 tasks using load balancing
+      - Tasks assigned to least-loaded servers
+      - Periodic rebalancing triggered as needed
+  
+  ════════════════════════════════════════════════════════════
+  PHASE 5: DISPLAY FINAL RESULTS
+  ════════════════════════════════════════════════════════════
+  11. Print final state banner
+  12. Call printServerStates() to show all server loads
+  13. Calculate and print final statistics:
+      - averageLoad = calculateAverageLoad()
+      - maxLoad = servers[findMostLoadedServer()].currentLoad
+      - minLoad = servers[findLeastLoadedServer()].currentLoad
+      - imbalance = maxLoad - minLoad
+  14. Print final assessment:
+      - If imbalance < 20%: "✓✓✓ System is WELL-BALANCED"
+      - Else: "⚠ System could benefit from further rebalancing"
+  
+  ════════════════════════════════════════════════════════════
+  PHASE 6: CLEANUP
+  ════════════════════════════════════════════════════════════
+  15. Free all allocated memory:
+      - freeMinHeap(loadHeap)
+      - freeGraph(networkGraph)
+  16. Print completion message: "✓ Simulation complete"
+  17. Return 0 (success)
+
+EXECUTION FLOW SUMMARY:
+  ┌─────────────────────────┐
+  │ INITIALIZE SERVERS      │
+  └────────────┬────────────┘
+               ↓
+  ┌─────────────────────────┐
+  │ BUILD NETWORK GRAPH     │
+  └────────────┬────────────┘
+               ↓
+  ┌─────────────────────────┐
+  │ CREATE MIN-HEAP         │
+  └────────────┬────────────┘
+               ↓
+  ┌─────────────────────────┐
+  │ SIMULATE 30 TASKS       │ ← Main loop
+  │ - Extract min server    │   (30 iterations)
+  │ - Assign task           │
+  │ - Rebalance if needed   │
+  └────────────┬────────────┘
+               ↓
+  ┌─────────────────────────┐
+  │ CALCULATE STATISTICS    │
+  │ - Average load          │
+  │ - Max/min loads         │
+  │ - Imbalance percentage  │
+  └────────────┬────────────┘
+               ↓
+  ┌─────────────────────────┐
+  │ DISPLAY RESULTS         │
+  └────────────┬────────────┘
+               ↓
+  ┌─────────────────────────┐
+  │ FREE ALL MEMORY         │
+  │ - Graph                 │
+  │ - Heap                  │
+  └────────────┬────────────┘
+               ↓
+  ┌─────────────────────────┐
+  │ EXIT (return 0)         │
+  └─────────────────────────┘
+
+TIME COMPLEXITY: O(n log m) where n = NUM_TASKS, m = NUM_SERVERS
+                 Task assignment dominates: 30 * log(6) ≈ 71 operations
+
+MEMORY ALLOCATION IN MAIN:
+  - Server array: 6 * sizeof(Server) ≈ 72 bytes
+  - Graph: sizeof(Graph) + edges ≈ variable
+  - Min-heap: sizeof(MinHeap) + 6 * sizeof(HeapNode) ≈ 100 bytes
+  - Total: ~500+ bytes for data structures
+
+EXAMPLE OUTPUT FROM MAIN:
+  ╔════════════════════════════════════════════════════════════╗
+  ║   DYNAMIC LOAD BALANCING SIMULATION - Distributed System   ║
+  ╚════════════════════════════════════════════════════════════╝
+  
+  ✓ Initializing 6 servers...
+    Server 0: Capacity = 98.05
+    Server 1: Capacity = 119.24
+    ...
+  
+  --- Server Network Topology ---
+  Server 0 → 3 1
+  Server 1 → 0 5 4
+  ...
+  
+  ✓ Min-heap initialized with all servers
+  
+  --- Assigning 30 Tasks Dynamically ---
+  Task  1 → Server 0 | Load:   9.90/ 98.05 (10.1%)
+  Task  2 → Server 5 | Load:  14.57/ 96.71 (15.1%)
+  ...
+  
+  ╔════════════════════════════════════════════════════════════╗
+  ║                    FINAL LOAD DISTRIBUTION                 ║
+  ╚════════════════════════════════════════════════════════════╝
+  
+  --- Current Server States ---
+  Server 0: Load =  52.76/ 98.05 (53.8%)
+  ...
+  
+  --- Final Statistics ---
+  Average Load:    51.23
+  Max Load:        56.59
+  Min Load:        48.27
+  Load Difference: 8.32
+  
+  ✓✓✓ System is WELL-BALANCED ✓✓✓
+  
+  ✓ Simulation complete. Resources freed.
+
+================================================================================
+                          SUMMARY OF COMPLEXITIES
+================================================================================
+
+OPERATION                  TIME COMPLEXITY    SPACE COMPLEXITY
+─────────────────────────────────────────────────────────────
+createGraph(n)             O(n)               O(n)
+addEdge()                  O(1)               O(1)
+printGraph()               O(V + E)           O(1)
+freeGraph()                O(V + E)           O(1) - frees memory
+
+createMinHeap(n)           O(1)               O(n)
+insertHeap()               O(log n)           O(1)
+extractMin()               O(log n)           O(1)
+updateHeap()               O(n + log n)       O(1)
+freeMinHeap()              O(1)               O(1) - frees memory
+
+calculateAverageLoad()     O(n)               O(1)
+getLoadPercentage()        O(1)               O(1)
+findMostLoadedServer()     O(n)               O(1)
+findLeastLoadedServer()    O(n)               O(1)
+rebalanceLoads()           O(n + log n)       O(1)
+printServerStates()        O(n)               O(1)
+
+simulateTaskAssignment()   O(n log m)         O(1)
+main()                     O(n log m)         O(n + E)
+
+WHERE: n = number of servers, m = number of tasks, E = number of edges
+
+================================================================================
+                     END OF FUNCTION DOCUMENTATION
+================================================================================
+
+For more information on how these functions work together, see:
+- README.markdown: Project overview and algorithm explanation
+- load_balancer.c: Source code with inline comments
+
+Questions? Review the comments in load_balancer.c for detailed implementation!
