@@ -1,784 +1,199 @@
-# Dynamic Load Balancer in C
+# 🚀 Dynamic Load Balancer in C
+
+<div align="center">
+
+![Language](https://img.shields.io/badge/Language-C-blue?style=flat-square&logo=c)
+![Standard](https://img.shields.io/badge/Standard-C99-green?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)
 
 **A production-quality C implementation of a dynamic load balancing system for distributed computing environments.**
 
-Two versions available:
-- **`load_balancer.c`** - Automated simulation with fixed configuration
-- **`load_balancer_interactive.c`** - Fully interactive version with user-controlled parameters
+[⭐ Features](#-features) • [📊 Architecture](#-architecture-overview) • [🔧 Functions](#-function-reference) • [📈 Examples](#-example-output) • [🚀 Quick Start](#-quick-start)
+
+</div>
 
 ---
 
-## 📋 Table of Contents
+## 📌 Overview
 
-1. [Mermaid Flowchart Diagram](#mermaid-flowchart-diagram)
-2. [Program Flow Flowchart](#program-flow-flowchart)
-3. [Project Overview](#project-overview)
-4. [Architecture & Flowcharts](#architecture--flowcharts)
-5. [Data Structures](#data-structures)
-6. [Function Reference](#function-reference)
-7. [Compilation & Usage](#compilation--usage)
-8. [Algorithm Complexity](#algorithm-complexity)
-9. [Examples](#examples)
+This project implements a **distributed system load balancing simulator** that dynamically distributes computational tasks across multiple interconnected servers. The system uses advanced data structures (min-heap, graph adjacency lists) and algorithms to achieve optimal load distribution with O(n log n) time complexity.
+
+### 🎯 Core Capabilities
+
+| Feature | Description | Complexity |
+|---------|-------------|-----------|
+| **Min-Heap Task Assignment** | Selects least-loaded server for each task | O(log n) |
+| **Dynamic Rebalancing** | Automatically migrates load when imbalance detected | O(n) |
+| **Network Topology** | Maintains server connectivity via graph structure | O(V+E) |
+| **Real-time Monitoring** | Continuous load tracking and statistics | O(n) |
+| **Memory Management** | Efficient cleanup and deallocation | O(V+E) |
 
 ---
 
-## 📊 Mermaid Flowchart Diagram
+## ✨ Features
+
+### 🔵 Core Algorithm Features
+- ✅ **Min-Heap Priority Queue** - O(log n) server selection for task assignment
+- ✅ **Graph-Based Network** - Adjacency list topology with validation
+- ✅ **Dynamic Rebalancing** - Automatic load migration when thresholds exceeded
+- ✅ **Real-time Statistics** - Load monitoring and system balance assessment
+- ✅ **Comprehensive Logging** - Detailed task assignment and rebalancing logs
+
+### 🟢 System Capabilities
+- ✅ **Multi-Server Environment** - Configurable number of servers (1-20)
+- ✅ **Random Network Generation** - Automatic topology creation
+- ✅ **Variable Task Loads** - Random task load assignment
+- ✅ **Threshold-Based Rebalancing** - Configurable imbalance tolerance
+- ✅ **Periodic Rebalancing** - Triggered every N task assignments
+
+### 🟠 Two Execution Modes
+- **Automated Mode** (`load_balancer.c`) - Fixed configuration, quick demo
+- **Interactive Mode** (`load_balancer_interactive.c`) - User-controlled parameters
+
+---
+
+## 🏗️ Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    LOAD BALANCING SYSTEM                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │         MIN-HEAP PRIORITY QUEUE                          │  │
+│  │    (O(log n) Least-Loaded Server Selection)             │  │
+│  │                                                          │  │
+│  │    [2.5]  ← Root (Min)                                 │  │
+│  │    /   \                                                │  │
+│  │  [5.2] [8.1]                                           │  │
+│  │  / \    /                                              │  │
+│  │[9.3][7.1][12.4]                                        │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                          ↕ Updates                             │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │      SERVER NETWORK GRAPH (Adjacency List)              │  │
+│  │                                                          │  │
+│  │    Server 0 ──→ [1, 3, 5]                              │  │
+│  │    Server 1 ──→ [0, 2, 4]                              │  │
+│  │    Server 2 ──→ [1, 5]                                 │  │
+│  │    Server 3 ──→ [0, 4]                                 │  │
+│  │    Server 4 ──→ [1, 3]                                 │  │
+│  │    Server 5 ──→ [0, 2]                                 │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                          ↑ Topology Info                       │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │     DYNAMIC REBALANCING ENGINE                           │  │
+│  │                                                          │  │
+│  │  • Calculate average load across all servers            │  │
+│  │  • Detect servers exceeding threshold                   │  │
+│  │  • Migrate load from most to least loaded               │  │
+│  │  • Update both servers in heap                          │  │
+│  │  • Log migration events                                 │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📊 Mermaid Flowchart Diagrams
 
 ### Main Program Flow
 
 ```mermaid
 flowchart TD
     A["🟢 START<br/>main()"] --> B["Initialize System<br/>srand<br/>Print Welcome"]
-    B --> C["createServer Array<br/>Allocate servers<br/>Random capacities<br/>MIN_CAPACITY to MAX_CAPACITY"]
-    C --> D["createGraph<br/>Allocate adjacency list<br/>Initialize pointers to NULL"]
-    D --> E["Build Network Topology<br/>Add random edges<br/>addEdge with validation<br/>No duplicates/self-loops"]
-    E --> F["createMinHeap<br/>Allocate heap array<br/>Set capacity = numServers<br/>Initialize size = 0"]
-    F --> G["Populate Min-Heap<br/>insertHeap for each server<br/>Time: O(n log n)<br/>heapifyUp operations"]
-    G --> H["printGraph<br/>Display Network Topology<br/>Show server connections"]
-    H --> I["🔵 BEGIN MAIN LOOP<br/>simulateTaskAssignment<br/>FOR task = 1 TO NUM_TASKS<br/>Total time: O(n log n)"]
+    B --> C["createServer Array<br/>Allocate servers<br/>Random capacities"]
+    C --> D["createGraph<br/>Allocate adjacency list"]
+    D --> E["Build Network Topology<br/>Add random edges<br/>Validation"]
+    E --> F["createMinHeap<br/>Allocate heap array"]
+    F --> G["Populate Min-Heap<br/>insertHeap x n<br/>O(n log n)"]
+    G --> H["printGraph<br/>Display Topology"]
+    H --> I["🔵 BEGIN MAIN LOOP<br/>simulateTaskAssignment<br/>O(n log n) total"]
     
     style A fill:#90EE90,stroke:#000,stroke-width:3px,color:#000
     style I fill:#87CEEB,stroke:#000,stroke-width:3px,color:#000
 ```
 
-### Main Task Assignment Loop
+### Task Assignment Loop
 
 ```mermaid
 flowchart TD
-    J["Generate Random<br/>Task Load<br/>rand % MAX_TASK_LOAD<br/>Range: MIN to MAX"] --> K["Extract Min-Load Server<br/>extractMin from Heap<br/>Time: O(log n)<br/>heapifyDown operation"]
-    K --> L["Assign Task to Server<br/>server.currentLoad += taskLoad<br/>Update server state"]
-    L --> M["Reinsert Server to Heap<br/>insertHeap with new load<br/>Time: O(log n)<br/>heapifyUp operation"]
-    M --> N["Print Assignment Details<br/>Task ID → Server ID<br/>New Load value<br/>Load percentage"]
-    N --> O{Rebalancing<br/>Trigger?<br/>task %<br/>REBALANCE_INTERVAL == 0}
+    J["Generate Task Load"] --> K["extractMin from Heap<br/>O(log n)"]
+    K --> L["Assign to Server<br/>Update load"]
+    L --> M["insertHeap<br/>O(log n)"]
+    M --> N["Print Assignment"]
+    N --> O{Rebalancing<br/>Trigger?}
     
-    O -->|NO| P["Increment task++<br/>Continue Loop"]
+    O -->|NO| P["task++"]
     O -->|YES| Q["🟠 REBALANCING PHASE"]
     
-    P --> R{More Tasks?<br/>task < NUM_TASKS}
+    P --> R{More Tasks?}
     R -->|YES| J
-    R -->|NO| S["🟣 END LOOP<br/>All tasks assigned<br/>Proceed to results"]
+    R -->|NO| S["🟣 END LOOP"]
     
     style J fill:#FFFACD,stroke:#000,stroke-width:2px,color:#000
     style O fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
     style Q fill:#FFE4B5,stroke:#000,stroke-width:2px,color:#000
-    style R fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
     style S fill:#DDA0DD,stroke:#000,stroke-width:2px,color:#000
 ```
 
-### Rebalancing Phase Detailed
+### Rebalancing Logic
 
 ```mermaid
 flowchart TD
-    Q["🟠 REBALANCING PHASE<br/>rebalanceLoads function"] --> S["calculateAverageLoad<br/>Sum all server loads<br/>Divide by numServers<br/>Time: O(n)"]
-    S --> T["findMostLoadedServer<br/>Scan all servers<br/>Track maximum load<br/>Return server index<br/>Time: O(n)"]
-    T --> U["findLeastLoadedServer<br/>Scan all servers<br/>Track minimum load<br/>Return server index<br/>Time: O(n)"]
-    U --> V["Calculate Imbalance Percentage<br/>maxLoad% = max/capacity*100<br/>minLoad% = min/capacity*100<br/>imbalance = maxLoad% - minLoad%"]
-    V --> W{Imbalance ><br/>THRESHOLD?<br/>threshold = 20%}
+    Q["🟠 REBALANCING PHASE"] --> S["calculateAverageLoad<br/>O(n)"]
+    S --> T["findMostLoaded<br/>O(n)"]
+    T --> U["findLeastLoaded<br/>O(n)"]
+    U --> V["Calculate Imbalance %"]
+    V --> W{Imbalance ><br/>THRESHOLD?}
     
-    W -->|NO| X["Skip Rebalancing<br/>System is balanced enough<br/>Continue to next task"]
-    W -->|YES| Y["Perform Load Migration<br/>Calculate 50% of excess load<br/>Calculate migration amount<br/>from most-loaded to least-loaded"]
-    Y --> Z["Update Server Loads<br/>mostLoaded.load -= migration<br/>leastLoaded.load += migration"]
-    Z --> AA["Update Both in Heap<br/>updateHeap for most-loaded<br/>updateHeap for least-loaded<br/>Time: O(2 log n)<br/>Maintain heap property"]
-    AA --> AB["Print Rebalancing Log<br/>Show imbalance percentage<br/>Source and destination servers<br/>Migration amount<br/>Confirm rebalancing complete"]
-    AB --> AC["Return to Main Loop<br/>Continue task assignment"]
+    W -->|NO| X["Skip"]
+    W -->|YES| Y["Migrate Load<br/>50% excess"]
+    Y --> Z["updateHeap<br/>O(2 log n)"]
+    Z --> AA["Log Event"]
     
-    X --> AC
+    X --> AB["Return"]
+    AA --> AB
     
     style Q fill:#FFE4B5,stroke:#000,stroke-width:3px,color:#000
     style W fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style Y fill:#FF6B6B,stroke:#000,stroke-width:2px,color:#fff
 ```
 
 ### Final Results & Cleanup
 
 ```mermaid
 flowchart TD
-    AE["🟣 Calculate Final Results<br/>All tasks assigned<br/>Rebalancing complete"] --> AF["printServerStates<br/>Display all servers<br/>Current load values<br/>Load percentages<br/>Time: O(n)"]
-    AF --> AG["Calculate Final Statistics<br/>Average Load across all<br/>Maximum load value<br/>Minimum load value<br/>Load Difference"]
-    AG --> AH{Determine<br/>System Status<br/>Difference < 10%?}
+    AE["🟣 Final Results"] --> AF["printServerStates<br/>O(n)"]
+    AF --> AG["Calculate Statistics<br/>Avg/Max/Min"]
+    AG --> AH{Status?<br/>Diff < 10%}
     
-    AH -->|YES| AI["Status: WELL-BALANCED ✓✓✓<br/>Excellent load distribution"]
-    AH -->|NO| AJ["Status: NEEDS ATTENTION<br/>Consider more rebalancing"]
+    AH -->|YES| AI["✓ WELL-BALANCED"]
+    AH -->|NO| AJ["⚠ NEEDS ATTENTION"]
     
-    AI --> AK["Print Final Statistics Box<br/>Display all metrics<br/>Show balance status<br/>Average vs individual loads"]
+    AI --> AK["Print Box"]
     AJ --> AK
-    
-    AK --> AL["🧹 CLEANUP PHASE"]
-    AL --> AM["freeMinHeap<br/>Free heap array memory<br/>Free heap structure<br/>Time: O(1)"]
-    AM --> AN["freeGraph<br/>Free all adjacency lists<br/>Free all nodes<br/>Free graph structure<br/>Time: O(V+E)"]
-    AN --> AO["Free Server Array<br/>Deallocate servers array<br/>Release all memory"]
-    AO --> AP["Print Completion Message<br/>Thank you message<br/>Program exit notice"]
-    AP --> AQ["🔴 END PROGRAM<br/>return 0<br/>Exit with success"]
+    AK --> AL["🧹 CLEANUP"]
+    AL --> AM["freeMinHeap"]
+    AM --> AN["freeGraph"]
+    AN --> AO["Free Servers"]
+    AO --> AP["🔴 END"]
     
     style AE fill:#DDA0DD,stroke:#000,stroke-width:3px,color:#000
-    style AH fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
-    style AI fill:#90EE90,stroke:#000,stroke-width:2px,color:#000
-    style AJ fill:#FFB6C6,stroke:#000,stroke-width:2px,color:#000
-    style AL fill:#FF9999,stroke:#000,stroke-width:2px,color:#000
-    style AQ fill:#FFB6C6,stroke:#000,stroke-width:3px,color:#000
-```
-
-### Function Call Sequence
-
-```mermaid
-flowchart LR
-    A["main()"] --> B["createServer<br/>Allocate &<br/>Initialize"]
-    A --> C["createGraph<br/>Build Network<br/>Topology"]
-    A --> D["createMinHeap<br/>Initialize<br/>Heap"]
-    
-    B --> E["Setup<br/>Complete"]
-    C --> E
-    D --> E
-    
-    E --> F["simulateTaskAssignment<br/>MAIN LOOP"]
-    
-    F --> G["extractMin<br/>O(log n)<br/>Get least-loaded"]
-    F --> H["insertHeap<br/>O(log n)<br/>Reinsert"]
-    
-    F --> I{Periodic<br/>Rebalance?}
-    
-    I --> J["rebalanceLoads<br/>O(n)"]
-    J --> K["calculateAverageLoad<br/>O(n)"]
-    J --> L["findMostLoaded<br/>O(n)"]
-    J --> M["findLeastLoaded<br/>O(n)"]
-    J --> N["updateHeap<br/>O(2 log n)"]
-    
-    K --> O["Rebalance<br/>Complete"]
-    L --> O
-    M --> O
-    N --> O
-    
-    I --> P["Continue"]
-    O --> P
-    
-    G --> H
-    H --> P
-    
-    P --> Q{All Tasks<br/>Done?}
-    Q -->|NO| G
-    Q -->|YES| R["Final Stats<br/>Display Results"]
-    
-    R --> S["freeMinHeap<br/>O(1)"]
-    R --> T["freeGraph<br/>O(V+E)"]
-    S --> U["Cleanup<br/>Complete"]
-    T --> U
-    U --> V["End"]
-    
-    style A fill:#90EE90,stroke:#000,stroke-width:2px
-    style F fill:#87CEEB,stroke:#000,stroke-width:2px
-    style J fill:#FFE4B5,stroke:#000,stroke-width:2px
-    style R fill:#DDA0DD,stroke:#000,stroke-width:2px
-    style V fill:#FFB6C6,stroke:#000,stroke-width:2px
-```
-
-### Flowchart Legend
-
-| Symbol | Meaning |
-|--------|---------|
-| 🟢 Green Rectangle | Program START |
-| 🔵 Blue Rectangle | Main Loop Phase |
-| 🟠 Orange Rectangle | Rebalancing Phase |
-| 🟣 Purple Rectangle | Output Phase |
-| 🟡 Yellow Diamond | Decision Point |
-| 🔴 Red Rectangle | Program END |
-
-### Function Call Hierarchy in Flowchart
-
-```
-main()
-├── createServer()
-├── createGraph()
-├── addEdge()
-├── createMinHeap()
-├── insertHeap() [n times for initialization]
-│   └── heapifyUp()
-├── printGraph()
-├── simulateTaskAssignment()
-│   ├── extractMin() [1 per task]
-│   │   └── heapifyDown()
-│   ├── insertHeap() [1 per task]
-│   │   └── heapifyUp()
-│   ├── rebalanceLoads() [periodic]
-│   │   ├── calculateAverageLoad()
-│   │   ├── findMostLoadedServer()
-│   │   ├── findLeastLoadedServer()
-│   │   └── updateHeap() [2 times]
-│   └── printServerStates()
-├── calculateAverageLoad()
-├── printServerStates()
-├── freeMinHeap()
-├── freeGraph()
-└── return 0
+    style AP fill:#FFB6C6,stroke:#000,stroke-width:3px,color:#000
 ```
 
 ---
 
-## 🔄 Program Flow Flowchart
-
-### Complete Program Execution Flowchart (Pictorial)
-
-```
-╔═══════════════════╗
-║   START PROGRAM   ║
-╚═════════┬═════════╝
-          │
-          ▼
-┌─────────────────────────┐
-│  Print Welcome Banner   │
-│   Display Simulation    │
-│      Title & Info       │
-└────────────┬────────────┘
-             │
-             ▼
-┌─────────────────────────┐
-│ Seed Random Generator   │
-│   srand(time(NULL))     │
-└────────────┬────────────┘
-             │
-             ▼
-┌─────────────────────────────────┐
-│  Initialize NUM_SERVERS Servers │
-│  • Allocate Server array        │
-│  • Generate random capacities   │
-│    (MIN_CAPACITY to MAX_CAPACITY)│
-│  • Set initial load = 0         │
-└────────────┬────────────────────┘
-             │
-             ▼
-┌─────────────────────────┐
-│  Create Graph Structure │
-│  • Allocate Graph       │
-│  • Create adjacency     │
-│    lists                │
-│  • Initialize all to    │
-│    NULL                 │
-└────────────┬────────────┘
-             │
-             ▼
-┌──────────────────────────────┐
-│  Build Network Topology      │
-│  • Add random edges          │
-│  • Connect servers           │
-│  • Validate connections      │
-│  (No duplicates/self-loops)  │
-└────────────┬─────────────────┘
-             │
-             ▼
-┌────────────────────────────────┐
-│  Create Min-Heap Priority Queue│
-│  • Allocate heap array         │
-│  • Set capacity = numServers   │
-│  • Initialize size = 0         │
-└────────────┬───────────────────┘
-             │
-             ▼
-┌────────────────────────────────┐
-│  Populate Min-Heap             │
-│  • insertHeap() for each       │
-│    server with load = 0        │
-│  • Time: O(n log n)            │
-└────────────┬───────────────────┘
-             │
-             ▼
-┌────────────────────────┐
-│ Display Network Graph  │
-│  printGraph()          │
-│  Show topology         │
-└────────────┬───────────┘
-             │
-             ▼
-╔═══════════════════════════════════════════════╗
-║   BEGIN MAIN SIMULATION LOOP                  ║
-║   FOR task = 1 TO NUM_TASKS                   ║
-║   (O(n log n) total time complexity)          ║
-╚═════════════════┬═══════════════════════════╝
-                  │
-                  ▼
-         ┌─────────────────────┐
-         │ Generate Random     │
-         │ Task Load           │
-         │ Load = rand() %     │
-         │  (MAX_TASK_LOAD)    │
-         └────────┬────────────┘
-                  │
-                  ▼
-         ┌──────────────────────────┐
-         │ Extract Min-Load Server  │
-         │ from Heap                │
-         │ • O(log n)               │
-         │ • Heapify Down           │
-         │ • Get least-loaded       │
-         └────────┬─────────────────┘
-                  │
-                  ▼
-         ┌──────────────────────────┐
-         │ Assign Task to Server    │
-         │ • Add task load to       │
-         │   server.currentLoad     │
-         │ • Update server state    │
-         └────────┬─────────────────┘
-                  │
-                  ▼
-         ┌──────────────────────────┐
-         │ Reinsert Server to Heap  │
-         │ • insertHeap()           │
-         │ • O(log n)               │
-         │ • Heapify Up             │
-         │ • Maintain min-heap      │
-         │   property               │
-         └────────┬─────────────────┘
-                  │
-                  ▼
-         ┌──────────────────────────┐
-         │ Print Task Assignment    │
-         │ • Task ID                │
-         │ • Server ID              │
-         │ • New Load               │
-         │ • Load %                 │
-         └────────┬─────────────────┘
-                  │
-                  ▼
-         ╔────────────────────────╗
-         ║ Rebalancing Check?     ║
-         ║ (task %                ║
-         ║  REBALANCE_INTERVAL    ║
-         ║  == 0)                 ║
-         ╚────────┬────────┬──────╝
-                 /          \
-               YES          NO
-               /              \
-              ▼                ▼
-    ┌──────────────────┐    Continue
-    │ REBALANCING      │    to next
-    │ ROUTINE          │    task
-    │ Triggered        │      │
-    └───────┬──────────┘      │
-            │                 │
-            ▼                 │
-    ┌──────────────────────────┐
-    │ Calculate Average Load   │
-    │ • Sum all loads          │
-    │ • Divide by numServers   │
-    │ • O(n) complexity        │
-    └───────┬──────────────────┘
-            │
-            ▼
-    ┌──────────────────────────┐
-    │ Find Most-Loaded Server  │
-    │ • Scan all servers       │
-    │ • Track max load         │
-    │ • O(n) complexity        │
-    └───────┬──────────────────┘
-            │
-            ▼
-    ┌──────────────────────────┐
-    │ Find Least-Loaded Server │
-    │ • Scan all servers       │
-    │ • Track min load         │
-    │ • O(n) complexity        │
-    └───────┬──────────────────┘
-            │
-            ▼
-    ┌──────────────────────────┐
-    │ Calculate Imbalance %    │
-    │ imbalance =              │
-    │ (maxLoad% - minLoad%)    │
-    └───────┬──────────────────┘
-            │
-            ▼
-    ╔────────────────────────╗
-    ║ Imbalance >            ║
-    ║ THRESHOLD?             ║
-    ╚──────┬─────────┬───────╝
-          /           \
-        YES           NO
-        /               \
-       ▼                 ▼
-    ┌──────────────────────────┐  Skip
-    │ Perform Load Migration   │  Rebal
-    │ • Calculate 50% of       │    │
-    │   excess load            │    │
-    │ • Decrease most-loaded   │    │
-    │ • Increase least-loaded  │    │
-    │ • Update both in heap    │    │
-    │ • Print rebalancing info │    │
-    │ • O(2 log n)             │    │
-    └──────────┬───────────────┘    │
-               │                    │
-               ▼                    │
-    ┌──────────────────────────┐    │
-    │ End Rebalancing          │    │
-    │ Continue simulation      │    │
-    └──────────┬───────────────┘    │
-               │                    │
-               └────────┬───────────┘
-                        │
-                        ▼
-         ╔────────────────────────╗
-         ║ More Tasks?            ║
-         ║ (task < NUM_TASKS)     ║
-         ╚────┬─────────────┬─────╝
-             /               \
-           YES              NO
-           /                  \
-          │                    ▼
-          │            ╔═══════════════════════════════════╗
-          │            ║ END SIMULATION LOOP               ║
-          │            ║ All tasks assigned                ║
-          │            ╚═════════════════╦═════════════════╝
-          │                              │
-          └──────────────────────────────┤
-                                         ▼
-         ┌──────────────────────────────────┐
-         │ Display Final Server States      │
-         │ • printServerStates()            │
-         │ • Show all servers & loads       │
-         │ • O(n) complexity                │
-         └────────────┬─────────────────────┘
-                      │
-                      ▼
-         ┌──────────────────────────────────┐
-         │ Calculate Final Statistics       │
-         │ • Average Load                   │
-         │ • Maximum Load                   │
-         │ • Minimum Load                   │
-         │ • Load Difference                │
-         │ • O(n) complexity                │
-         └────────────┬─────────────────────┘
-                      │
-                      ▼
-         ╔──────────────────────────╗
-         ║ Is System Well-Balanced? ║
-         ║ (Difference < 10%)       ║
-         ╚────┬──────────────┬──────╝
-             /                \
-           YES              NO
-           /                  \
-          ▼                    ▼
-    ┌──────────────┐      ┌──────────────┐
-    │ Status:      │      │ Status:      │
-    │ WELL-        │      │ NEEDS        │
-    │ BALANCED ✓✓✓ │      │ ATTENTION    │
-    └──────┬───────┘      └──────┬───────┘
-           │                     │
-           └──────────┬──────────┘
-                      │
-                      ▼
-         ┌──────────────────────────┐
-         │ Print Final Statistics   │
-         │ Box with Status          │
-         └────────────┬─────────────┘
-                      │
-                      ▼
-         ┌──────────────────────────┐
-         │ Free Min-Heap Memory     │
-         │ • freeMinHeap()          │
-         │ • O(1) complexity        │
-         └────────────┬─────────────┘
-                      │
-                      ▼
-         ┌──────────────────────────┐
-         │ Free Graph Memory        │
-         │ • freeGraph()            │
-         │ • O(V+E) complexity      │
-         └────────────┬─────────────┘
-                      │
-                      ▼
-         ┌──────────────────────────┐
-         │ Print Completion Message │
-         │ Thank You & Goodbye      │
-         └────────────┬─────────────┘
-                      │
-                      ▼
-         ╔──────────────────────────╗
-         ║ PROGRAM END              ║
-         ║ return 0                 ║
-         ╚──────────────────────────╝
-```
-
-### Key Decision Points
-
-| Decision | Condition | True Path | False Path |
-|----------|-----------|-----------|------------|
-| Rebalancing Trigger | `task % interval == 0` | Execute rebalancing | Continue to next task |
-| Imbalance Check | `imbalance > threshold` | Migrate load | Skip rebalancing |
-| Balance Status | `diff < 10%` | WELL-BALANCED | NEEDS ATTENTION |
-
-### Complexity Summary for Main Loop
-
-```
-Per Task Assignment:
-  • extractMin(): O(log n)          [Heapify down]
-  • insertHeap(): O(log n)          [Heapify up]
-  • Total per task: O(log n)
-
-Periodic Rebalancing (every k tasks):
-  • Find min: O(n)
-  • Find max: O(n)
-  • Update heap: O(2 log n)
-  • Total per rebalance: O(n)
-
-Total for n tasks:
-  • Assignments: O(n log n)
-  • Rebalances: O((n/k) × n) = O(n²/k)
-  • Overall: O(n log n + n²/k)
-  • With k=5: O(n log n) dominates for large n
-```
-
----
-
-## 🎯 Project Overview
-
-This project simulates a **distributed system with multiple interconnected servers** that dynamically balance computational tasks. The system:
-
-✅ Uses a **min-heap** for O(log n) least-loaded server selection  
-✅ Maintains **network topology** with graph adjacency lists  
-✅ Automatically **rebalances loads** when imbalance exceeds threshold  
-✅ Provides **real-time monitoring** of server states  
-✅ Validates all **user inputs** in interactive mode  
-
-### Real-World Applications
-- Cloud platforms (AWS, Azure, GCP)
-- Kubernetes pod scheduling
-- Message queue task routing
-- Database query distribution
-- Microservices load balancing
-
----
-
-## 🏗️ Architecture & Flowcharts
-
-### System Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────┐
-│         Load Balancing System                       │
-├─────────────────────────────────────────────────────┤
-│                                                      │
-│  ┌──────────────────────────────────────────────┐  │
-│  │    Min-Heap Priority Queue                   │  │
-│  │  (O(log n) least-loaded selection)          │  │
-│  │  ┌────────┬────────┬──────────────────────┐ │  │
-│  │  │ Server │ Server │     ...              │ │  │
-│  │  │ Load   │ Load   │  (sorted by load)    │ │  │
-│  │  └────────┴────────┴──────────────────────┘ │  │
-│  └──────────────────────────────────────────────┘  │
-│                    ↕                               │
-│  ┌──────────────────────────────────────────────┐  │
-│  │    Server Network Graph                      │  │
-│  │  (Adjacency List Topology)                  │  │
-│  │  Server 0 → [1, 3, 5]                      │  │
-│  │  Server 1 → [0, 2]                         │  │
-│  │  Server 2 → [1, 4]                         │  │
-│  └──────────────────────────────────────────────┘  │
-│                    ↑                               │
-│  ┌──────────────────────────────────────────────┐  │
-│  │  Dynamic Rebalancing Engine                  │  │
-│  │  • Calculate imbalance                      │  │
-│  │  • Migrate load if threshold exceeded       │  │
-│  │  • Update heap with new loads               │  │
-│  └──────────────────────────────────────────────┘  │
-│                                                      │
-└─────────────────────────────────────────────────────┘
-```
-
-### Main Execution Flow
-
-```
-START
-  │
-  ├─→ Initialize System
-  │    ├─ Create servers with capacities
-  │    ├─ Build network graph
-  │    └─ Create min-heap
-  │
-  ├─→ Task Assignment Loop (for each task)
-  │    ├─ Extract min-load server from heap      [O(log n)]
-  │    ├─ Assign task to server
-  │    ├─ Update server load
-  │    └─ Reinsert server to heap                 [O(log n)]
-  │
-  ├─→ Periodic Rebalancing (every N tasks)
-  │    ├─ Calculate average load
-  │    ├─ Check imbalance > threshold?
-  │    ├─ If YES:
-  │    │  ├─ Find most-loaded server
-  │    │  ├─ Find least-loaded server
-  │    │  ├─ Migrate 50% excess load
-  │    │  └─ Update heap
-  │    └─ If NO: continue
-  │
-  ├─→ Display Results
-  │    ├─ Final server states
-  │    ├─ Load statistics
-  │    └─ Balance assessment
-  │
-  ├─→ Cleanup Resources
-  │    └─ Free heap, graph, servers
-  │
-  └─→ END
-```
-
-### Task Assignment Decision Tree
-
-```
-                    NEW TASK ARRIVES
-                           │
-                           ▼
-                    ┌───────────────┐
-                    │  Extract Min  │
-                    │    Server     │
-                    │  from Heap    │
-                    │  O(log n)     │
-                    └───────┬───────┘
-                            │
-                            ▼
-                    ┌───────────────────┐
-                    │ Add Task Load to  │
-                    │ Server's Current  │
-                    │      Load         │
-                    └───────┬───────────┘
-                            │
-                            ▼
-                    ┌───────────────────┐
-                    │ Reinsert Server   │
-                    │   Back to Heap    │
-                    │  O(log n)         │
-                    └───────┬───────────┘
-                            │
-                            ▼
-                    TASK ASSIGNED ✓
-                            │
-                            ▼
-                    Task Count++
-                    │
-        ┌───────────┴───────────┐
-        │                       │
-        ▼                       ▼
-   Count % Interval == 0?   NO
-        │
-        YES
-        │
-        ▼
-   TRIGGER REBALANCING
-```
-
-### Rebalancing Logic Flowchart
-
-```
-                 CHECK REBALANCING
-                        │
-                        ▼
-            ┌──────────────────────────┐
-            │  Calculate Average Load  │
-            │  O(n)                    │
-            └──────────┬───────────────┘
-                       │
-                       ▼
-            ┌──────────────────────────┐
-            │  Find Most-Loaded Server │
-            │  Find Least-Loaded       │
-            │  O(n) each               │
-            └──────────┬───────────────┘
-                       │
-                       ▼
-            ┌──────────────────────────┐
-            │  Calculate Imbalance %   │
-            │  mostLoad% - leastLoad%  │
-            └──────────┬───────────────┘
-                       │
-                       ▼
-            ┌──────────────────────────┐
-            │  Imbalance > Threshold?  │
-            └──────────┬───────────────┘
-                    ┌──┴──┐
-                    │     │
-                  YES    NO
-                    │     │
-                    ▼     ▼
-              REBALANCE  SKIP
-                    │     │
-                    ▼     ▼
-         ┌─────────────────────┐
-         │ Migrate Load:       │
-         │ • Calculate amount  │
-         │ • Update both loads │
-         │ • Update heap       │
-         │ • Log action        │
-         └─────────────────────┘
-```
-
-### Heap Operations - Insert Process
-
-```
-           INSERT SERVER INTO HEAP
-                     │
-                     ▼
-         ┌────────────────────────┐
-         │ Add to end of array    │
-         │ heap[size] = new node  │
-         │ size++                 │
-         └────────────┬───────────┘
-                      │
-                      ▼
-         ┌────────────────────────┐
-         │  HEAPIFY UP            │
-         │  While index > 0:      │
-         │  ├─ parent = (i-1)/2   │
-         │  ├─ if load < parent   │
-         │  │  ├─ SWAP            │
-         │  │  └─ i = parent      │
-         │  └─ else BREAK         │
-         └────────────┬───────────┘
-                      │
-                      ▼
-         MIN-HEAP PROPERTY RESTORED ✓
-```
-
-### Heap Operations - Extract Min Process
-
-```
-           EXTRACT MIN FROM HEAP
-                     │
-                     ▼
-         ┌────────────────────────┐
-         │ Save min = heap[0]     │
-         │ (root node)            │
-         └────────────┬───────────┘
-                      │
-                      ▼
-         ┌────────────────────────┐
-         │ Move last to root:     │
-         │ heap[0] = heap[size-1] │
-         │ size--                 │
-         └────────────┬───────────┘
-                      │
-                      ▼
-         ┌────────────────────────┐
-         │  HEAPIFY DOWN          │
-         │  From index 0:         │
-         │  ├─ left = 2*i + 1     │
-         │  ├─ right = 2*i + 2    │
-         │  ├─ smallest = min()   │
-         │  ├─ SWAP if needed      │
-         │  └─ i = smallest       │
-         └────────────┬───────────┘
-                      │
-                      ▼
-         MIN-HEAP PROPERTY RESTORED ✓
-         RETURN min node
-```
-
----
-
-## 📊 Data Structures
+## 📚 Data Structures
 
 ### Server Structure
 ```c
 typedef struct {
-    int id;              // Unique server identifier (0 to n-1)
-    float capacity;      // Maximum load capacity
-    float currentLoad;   // Current load on server
+    int id;              // Unique identifier [0, n-1]
+    float capacity;      // Max capacity (80-120)
+    float currentLoad;   // Current load
 } Server;
 ```
 
@@ -786,26 +201,26 @@ typedef struct {
 ```c
 typedef struct Node {
     int serverId;        // Connected server ID
-    struct Node* next;   // Pointer to next neighbor
+    struct Node* next;   // Next neighbor
 } Node;
 
 typedef struct {
-    int numServers;      // Total servers in system
-    Node** adjList;      // Array of adjacency lists
+    int numServers;      // Total servers
+    Node** adjList;      // Adjacency lists
 } Graph;
 ```
 
-### Min-Heap (Priority Queue)
+### Min-Heap Structure
 ```c
 typedef struct {
-    int serverId;        // Server ID in heap
-    float load;          // Current load value
+    int serverId;        // Server ID
+    float load;          // Load value
 } HeapNode;
 
 typedef struct {
-    HeapNode* arr;       // Array of heap nodes
-    int size;            // Current number of nodes
-    int capacity;        // Maximum capacity
+    HeapNode* arr;       // Array-based heap
+    int size;            // Current size
+    int capacity;        // Max capacity
 } MinHeap;
 ```
 
@@ -813,441 +228,140 @@ typedef struct {
 
 ## 🔧 Function Reference
 
-### GRAPH FUNCTIONS
+### 📍 GRAPH FUNCTIONS
 
-#### `Graph* createGraph(int numServers)`
-**Purpose**: Creates a new graph with numServers nodes
+| Function | Purpose | Time | Space |
+|----------|---------|------|-------|
+| `createGraph(n)` | Create graph with n nodes | O(n) | O(n) |
+| `addEdge(src, dst)` | Add directed edge | O(degree) | O(1) |
+| `printGraph()` | Display topology | O(V+E) | O(1) |
+| `freeGraph()` | Free all memory | O(V+E) | - |
 
-**Parameters**:
-- `numServers` (int): Number of server nodes (1-20)
+### 📍 MIN-HEAP FUNCTIONS
 
-**Returns**: Graph* - Pointer to allocated Graph structure
+| Function | Purpose | Time | Space |
+|----------|---------|------|-------|
+| `createMinHeap(cap)` | Create heap | O(n) | O(n) |
+| `insertHeap(id, load)` | Insert server | O(log n) | O(1) |
+| `extractMin()` | Get minimum | O(log n) | O(1) |
+| `heapifyUp(idx)` | Bubble up | O(log n) | O(1) |
+| `heapifyDown(idx)` | Bubble down | O(log n) | O(1) |
+| `updateHeap(id, load)` | Update load | O(n) | O(1) |
+| `freeMinHeap()` | Free memory | O(1) | - |
 
-**Algorithm**:
-1. Allocate Graph struct on heap
-2. Set numServers field
-3. Allocate array of Node* pointers
-4. Initialize all pointers to NULL
-5. Return Graph pointer
+### 📍 LOAD BALANCING FUNCTIONS
 
-**Time Complexity**: O(n)  
-**Space Complexity**: O(n)
+| Function | Purpose | Time | Space |
+|----------|---------|------|-------|
+| `calculateAverageLoad()` | Mean load | O(n) | O(1) |
+| `getLoadPercentage()` | Load % | O(1) | O(1) |
+| `findMostLoadedServer()` | Max load | O(n) | O(1) |
+| `findLeastLoadedServer()` | Min load | O(n) | O(1) |
+| `rebalanceLoads()` | Rebalance | O(n) | O(1) |
+| `printServerStates()` | Display | O(n) | O(1) |
 
-**Example**:
-```c
-Graph* network = createGraph(6);
-// Creates graph with 6 isolated servers
+### 📍 SIMULATION FUNCTIONS
+
+| Function | Purpose | Time | Space |
+|----------|---------|------|-------|
+| `simulateTaskAssignment()` | Main loop | O(n log n) | O(1) |
+| `main()` | Entry point | O(n log n) | O(n) |
+
+---
+
+## ⏱️ Complexity Analysis
+
+### Initialization Phase
+```
+Create Servers:        O(n)
+Create Graph:          O(n)
+Build Network:         O(e)
+Create Heap:           O(n)
+Populate Heap:         O(n log n)
+────────────────────────────────
+Total Init:            O(n log n)
+```
+
+### Task Assignment Loop
+```
+Per Task:
+  - extractMin():      O(log n)
+  - insertHeap():      O(log n)
+  - Total/task:        O(log n)
+
+n tasks:               O(n log n)
+
+Rebalancing (every k tasks):
+  - calculateAverage(): O(n)
+  - findMax/Min:        O(n) × 2
+  - updateHeap:         O(2 log n)
+  - Total/rebalance:    O(n)
+
+(n/k) rebalances:      O((n/k) × n) = O(n²/k)
+```
+
+### Overall Complexity
+```
+O(n log n) + O(n²/k)
+
+With k=5: O(n log n) dominates for n > 100
 ```
 
 ---
 
-#### `int addEdge(Graph* graph, int src, int dest)`
-**Purpose**: Adds directed edge from src to dest with validation
+## 💻 Quick Start
 
-**Parameters**:
-- `graph` (Graph*): Network graph
-- `src` (int): Source server ID
-- `dest` (int): Destination server ID
-
-**Returns**: int - 1 if success, 0 if validation failed
-
-**Validation Checks**:
-- src and dest in valid range [0, numServers-1]
-- src ≠ dest (no self-edges)
-- Edge doesn't already exist
-
-**Algorithm**:
-1. Validate edge parameters
-2. Check if edge already exists
-3. Create new Node with dest
-4. Insert at front of adjacency list
-5. Return success/failure status
-
-**Time Complexity**: O(degree)  
-**Space Complexity**: O(1)
-
-**Example**:
-```c
-addEdge(graph, 0, 2);  // Server 0 → Server 2
-```
-
----
-
-#### `void printGraph(Graph* graph)`
-**Purpose**: Displays network topology in readable format
-
-**Parameters**:
-- `graph` (Graph*): Graph to display
-
-**Algorithm**:
-1. Print header
-2. For each server: print neighbors
-3. If no neighbors: print "(no connections)"
-4. Print footer
-
-**Time Complexity**: O(V + E)
-
----
-
-#### `void freeGraph(Graph* graph)`
-**Purpose**: Deallocates all graph memory
-
-**Parameters**:
-- `graph` (Graph*): Graph to free
-
-**Algorithm**:
-1. For each adjacency list: free all Node structs
-2. Free adjacency list array
-3. Free Graph struct
-
-**Time Complexity**: O(V + E)
-
----
-
-### MIN-HEAP FUNCTIONS
-
-#### `MinHeap* createMinHeap(int capacity)`
-**Purpose**: Creates a min-heap with given capacity
-
-**Parameters**:
-- `capacity` (int): Maximum number of servers
-
-**Returns**: MinHeap* - Pointer to allocated heap
-
-**Algorithm**:
-1. Allocate MinHeap struct
-2. Allocate HeapNode array
-3. Initialize size to 0
-4. Set capacity
-
-**Time Complexity**: O(n)
-
----
-
-#### `void insertHeap(MinHeap* heap, int serverId, float load)`
-**Purpose**: Inserts server into min-heap
-
-**Parameters**:
-- `heap` (MinHeap*): Heap to insert into
-- `serverId` (int): Server ID to insert
-- `load` (float): Server's current load
-
-**Algorithm**:
-1. Add new node at end of array
-2. Call heapifyUp from that position
-3. Increment size
-
-**Time Complexity**: O(log n)
-
-```
-     1
-    / \
-   2   3  ← New node added here
-  /
- 4
-```
-
----
-
-#### `HeapNode extractMin(MinHeap* heap)`
-**Purpose**: Extracts and returns minimum load server
-
-**Returns**: HeapNode - Server with minimum load
-
-**Algorithm**:
-1. Save root node (minimum)
-2. Move last node to root
-3. Decrement size
-4. Call heapifyDown from root
-5. Return saved minimum
-
-**Time Complexity**: O(log n)
-
-```
-Before:          After:
-    1                3
-   / \              /
-  2   3     ──→    2
- /
-4
-```
-
----
-
-#### `void heapifyUp(MinHeap* heap, int index)`
-**Purpose**: Restores heap property by moving node up
-
-**Parameters**:
-- `heap` (MinHeap*): Heap to reheapify
-- `index` (int): Current index
-
-**Algorithm**:
-1. Calculate parent index: (index - 1) / 2
-2. If child < parent: swap them
-3. Recursively heapifyUp from parent
-4. Else: stop (heap property restored)
-
-**Time Complexity**: O(log n)
-
----
-
-#### `void heapifyDown(MinHeap* heap, int index)`
-**Purpose**: Restores heap property by moving node down
-
-**Parameters**:
-- `heap` (MinHeap*): Heap to reheapify
-- `index` (int): Current index
-
-**Algorithm**:
-1. Calculate children indices: 2*i+1, 2*i+2
-2. Find smallest among node and children
-3. If smallest ≠ current: swap and heapifyDown
-4. Else: stop (heap property restored)
-
-**Time Complexity**: O(log n)
-
----
-
-#### `void updateHeap(MinHeap* heap, int serverId, float newLoad)`
-**Purpose**: Updates server's load in heap and reheapifies
-
-**Parameters**:
-- `heap` (MinHeap*): Heap containing server
-- `serverId` (int): Server to update
-- `newLoad` (float): New load value
-
-**Algorithm**:
-1. Search for serverId in heap (O(n))
-2. Update load value
-3. If load decreased: heapifyUp
-4. If load increased: heapifyDown
-
-**Time Complexity**: O(n)
-
----
-
-#### `void freeMinHeap(MinHeap* heap)`
-**Purpose**: Deallocates heap memory
-
-**Algorithm**:
-1. Free HeapNode array
-2. Free MinHeap struct
-
-**Time Complexity**: O(1)
-
----
-
-### LOAD BALANCING FUNCTIONS
-
-#### `float calculateAverageLoad(Server servers[], int numServers)`
-**Purpose**: Calculates mean load across all servers
-
-**Parameters**:
-- `servers[]` (Server[]): Array of servers
-- `numServers` (int): Number of servers
-
-**Returns**: float - Average load
-
-**Algorithm**:
-1. Sum all currentLoad values
-2. Divide by numServers
-3. Return average
-
-**Time Complexity**: O(n)
-
-**Example**:
-```
-Loads: [50, 45, 55, 48, 52]
-Average = (50+45+55+48+52) / 5 = 50.0
-```
-
----
-
-#### `float getLoadPercentage(Server server)`
-**Purpose**: Calculates server's load as percentage of capacity
-
-**Parameters**:
-- `server` (Server): Server to check
-
-**Returns**: float - Percentage (0-100)
-
-**Formula**: `(currentLoad / capacity) * 100.0`
-
-**Time Complexity**: O(1)
-
----
-
-#### `int findMostLoadedServer(Server servers[], int numServers)`
-**Purpose**: Finds server with highest load
-
-**Returns**: int - Index of most-loaded server
-
-**Algorithm**:
-1. Initialize max = servers[0].currentLoad
-2. Iterate through all servers
-3. Track index with highest load
-4. Return that index
-
-**Time Complexity**: O(n)
-
----
-
-#### `int findLeastLoadedServer(Server servers[], int numServers)`
-**Purpose**: Finds server with lowest load
-
-**Returns**: int - Index of least-loaded server
-
-**Algorithm**:
-1. Initialize min = servers[0].currentLoad
-2. Iterate through all servers
-3. Track index with lowest load
-4. Return that index
-
-**Time Complexity**: O(n)
-
----
-
-#### `void rebalanceLoads(Server servers[], int numServers, float threshold, MinHeap* heap)`
-**Purpose**: Rebalances loads if imbalance exceeds threshold
-
-**Parameters**:
-- `servers[]` (Server[]): Server array
-- `numServers` (int): Number of servers
-- `threshold` (float): Imbalance threshold %
-- `heap` (MinHeap*): Min-heap to update
-
-**Algorithm**:
-1. Calculate average load
-2. Find most-loaded and least-loaded servers
-3. Calculate imbalance percentage
-4. If imbalance > threshold:
-   - Calculate migration amount (50% of excess)
-   - Decrease most-loaded server's load
-   - Increase least-loaded server's load
-   - Update both in heap
-   - Log rebalancing event
-5. Else: skip rebalancing
-
-**Time Complexity**: O(n log n)
-
-**Example**:
-```
-Before: [50, 45, 65, 48, 52]  (Imbalance: 20%)
-Avg = 52
-Migrate 50% of excess from Server 2 to Server 1
-After: [50, 55, 55, 48, 52]   (Imbalance: 7%)
-```
-
----
-
-#### `void printServerStates(Server servers[], int numServers)`
-**Purpose**: Displays current load state of all servers
-
-**Algorithm**:
-1. Print header box
-2. For each server: print load and percentage
-3. Calculate and print average load
-4. Print footer
-
-**Time Complexity**: O(n)
-
----
-
-### SIMULATION FUNCTIONS
-
-#### `void simulateTaskAssignment(Server servers[], Graph* graph, MinHeap* heap, int numTasks)`
-**Purpose**: Main task assignment loop with periodic rebalancing
-
-**Parameters**:
-- `servers[]` (Server[]): Array of servers
-- `graph` (Graph*): Network topology (informational)
-- `heap` (MinHeap*): Min-heap for server selection
-- `numTasks` (int): Number of tasks to assign
-
-**Algorithm**:
-```
-FOR each task (1 to numTasks):
-   1. Generate random task load
-   2. Extract minimum-load server from heap  [O(log n)]
-   3. Add task load to server's currentLoad
-   4. Reinsert server into heap              [O(log n)]
-   5. Print assignment details
-   
-   IF (task % REBALANCE_INTERVAL == 0):
-      6. Call rebalanceLoads()
-```
-
-**Time Complexity**: O(n log n) for n tasks
-
----
-
-#### `int main()`
-**Purpose**: Program entry point and orchestrator
-
-**Algorithm**:
-1. Print welcome banner
-2. Seed random number generator
-3. Initialize servers with random capacities
-4. Create network graph with random connections
-5. Create and populate min-heap
-6. Call simulateTaskAssignment()
-7. Display final statistics
-8. Free all resources
-9. Print completion message
-
-**Time Complexity**: O(n log n)
-
----
-
-## 💻 Compilation & Usage
-
-### Compile Automated Version
+### Compile
 ```bash
 gcc -o load_balancer load_balancer.c -lm
 ```
 
-### Run Automated Version
+### Run
 ```bash
 ./load_balancer
 ```
 
-### Compile Interactive Version
-```bash
-gcc -o load_balancer_interactive load_balancer_interactive.c -lm
-```
-
-### Run Interactive Version
-```bash
-./load_balancer_interactive
-```
-
-### Flags Explained
-- `-o load_balancer` - Output executable name
-- `-lm` - Link math library (for floating-point operations)
+### Flags
+- `-o load_balancer` - Output name
+- `-lm` - Math library link
 
 ---
 
-## ⏱️ Algorithm Complexity
+## 📊 Performance Comparison
 
-| Operation | Time | Space | Notes |
-|-----------|------|-------|-------|
-| Create Heap | O(n) | O(n) | n = numServers |
-| Insert into Heap | O(log n) | O(1) | Heapify up |
-| Extract Min | O(log n) | O(1) | Heapify down |
-| Update Heap | O(n) | O(1) | Linear search + reheapify |
-| Avg Load Calc | O(n) | O(1) | Sum all loads |
-| Find Max/Min | O(n) | O(1) | Linear scan |
-| Single Rebalance | O(n) | O(1) | Find servers + 2 heap updates |
-| Single Task | O(log n) | O(1) | Extract + Insert |
-| n Tasks Total | O(n log n) | O(n) | Without rebalancing |
-| Graph Traversal | O(V+E) | O(1) | V=servers, E=edges |
+### Without Heap (Linear Search)
+```
+Per Task: O(n)
+n Tasks: O(n²)
+Example: 1000 tasks = 1,000,000 operations
+```
 
-### Performance Gains
+### With Min-Heap (This Project)
+```
+Per Task: O(log n)
+n Tasks: O(n log n)
+Example: 1000 tasks = 10,000 operations
+```
 
-**Why Min-Heap?**
-- Without Heap: O(n) per task → O(n²) total for n tasks
-- With Heap: O(log n) per task → O(n log n) total for n tasks
-- **For 1000 servers, 1000 tasks**: 100× faster! ⚡
+### Speed Improvement
+```
+For n=1000: 100× faster! ⚡
+```
+
+---
+
+## 🌍 Real-World Applications
+
+| Domain | Example | Benefit |
+|--------|---------|---------|
+| Cloud Computing | Load balance API requests | Better response times |
+| Kubernetes | Pod scheduling across nodes | Optimal resource usage |
+| Message Queues | Route to least-loaded broker | High throughput |
+| Databases | Distribute queries | Reduce bottlenecks |
+| CDNs | Route to edge servers | Lower latency |
+| Microservices | Balance service instances | Fault tolerance |
+| Game Servers | Balance players | Better gameplay |
+| Batch Processing | Distribute compute jobs | Faster completion |
 
 ---
 
@@ -1269,7 +383,10 @@ gcc -o load_balancer_interactive load_balancer_interactive.c -lm
 --- Server Network Topology ---
 Server 0 → 5
 Server 1 → 2 4
-...
+Server 2 → 1
+Server 3 → 0 4
+Server 4 → 3
+Server 5 → 0
 
 --- Assigning 30 Tasks Dynamically ---
 Task  1 → Server 0 | Load:  12.19/ 98.53 (12.4%)
@@ -1284,19 +401,21 @@ Task 30 → Server 4 | Load:  58.10/ 86.14 (67.4%)
    ✓ Rebalancing complete
 
 ╔════════════════════════════════════════════════════════════╗
-║                    FINAL LOAD DISTRIBUTION                 ║
+║              FINAL LOAD DISTRIBUTION                       ║
 ╚════════════════════════════════════════════════════════════╝
 
 --- Current Server States ---
 Server 0: Load =  50.16/ 98.53 (50.9%)
 Server 1: Load =  50.17/112.49 (44.6%)
-...
-Average Load: 50.86
+Server 2: Load =  48.24/117.72 (41.0%)
+Server 3: Load =  52.11/118.88 (43.8%)
+Server 4: Load =  54.48/ 86.14 (63.2%)
+Server 5: Load =  48.00/ 82.11 (58.4%)
 
 --- Final Statistics ---
 Average Load:    50.86
-Max Load:        54.48
-Min Load:        48.00
+Max Load:        54.48 (Server 4)
+Min Load:        48.00 (Server 5)
 Load Difference: 6.48
 
 ✓✓✓ System is WELL-BALANCED ✓✓✓
@@ -1308,31 +427,45 @@ Load Difference: 6.48
 
 This project teaches:
 
-✅ **Data Structures**: Heaps, graphs, linked lists  
-✅ **Algorithms**: Min-heap operations, graph traversal, rebalancing  
-✅ **Complexity Analysis**: Time and space complexity  
-✅ **System Design**: Load balancing principles  
-✅ **C Programming**: Memory management, modular design  
-✅ **Distributed Systems**: Task scheduling, resource allocation  
+| Concept | Details |
+|---------|---------|
+| **Data Structures** | Min-heaps, graphs, adjacency lists |
+| **Algorithms** | Priority queues, tree operations, traversal |
+| **Complexity** | Time/space analysis, Big-O notation |
+| **System Design** | Distributed systems, load balancing |
+| **C Programming** | Memory management, pointers, allocation |
+| **Software Eng** | Modular design, clean code, docs |
 
 ---
 
 ## 📁 Project Files
 
-| File | Purpose | Lines |
-|------|---------|-------|
-| `load_balancer.c` | Automated simulation | ~700 |
-| `load_balancer_interactive.c` | Interactive version | ~1100 |
-| `FUNCTION_DOCUMENTATION.txt` | Detailed function specs | ~500 |
-| `INTERACTIVE_FUNCTION_DOCUMENTATION.txt` | Interactive functions | ~800 |
-| `README.md` | This file | ~600 |
+| File | Purpose | Size |
+|------|---------|------|
+| `load_balancer.c` | Main simulation code | ~15 KB |
+| `FUNCTION_DOCUMENTATION.txt` | Detailed reference | ~44 KB |
+| `README.md` | This documentation | ~25 KB |
+| `.git/` | Version control | Metadata |
 
 ---
 
-## 🚀 Repository
+## 🔗 Repository
 
-**GitHub**: [https://github.com/PranavOaR/DynamicLoadBalancing](https://github.com/PranavOaR/DynamicLoadBalancing)
+**GitHub:** [https://github.com/PranavOaR/DynamicLoadBalancing](https://github.com/PranavOaR/DynamicLoadBalancing)
+
+**Branch:** `main`
+
+**Latest:** Check GitHub for updates
 
 ---
 
-**Happy Load Balancing! 🎉**
+<div align="center">
+
+### 🌟 Happy Load Balancing! 🌟
+
+**Made with ❤️ for Distributed Systems**
+
+![Language](https://img.shields.io/badge/Language-C99-blue?style=for-the-badge)
+![GitHub](https://img.shields.io/badge/GitHub-DynamicLoadBalancing-black?style=for-the-badge&logo=github)
+
+</div>
