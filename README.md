@@ -24,70 +24,151 @@ Two versions available:
 
 ## 📊 Mermaid Flowchart Diagram
 
+### Main Program Flow
+
+```mermaid
+flowchart TD
+    A["🟢 START<br/>main()"] --> B["Initialize System<br/>srand<br/>Print Welcome"]
+    B --> C["createServer Array<br/>Allocate servers<br/>Random capacities<br/>MIN_CAPACITY to MAX_CAPACITY"]
+    C --> D["createGraph<br/>Allocate adjacency list<br/>Initialize pointers to NULL"]
+    D --> E["Build Network Topology<br/>Add random edges<br/>addEdge with validation<br/>No duplicates/self-loops"]
+    E --> F["createMinHeap<br/>Allocate heap array<br/>Set capacity = numServers<br/>Initialize size = 0"]
+    F --> G["Populate Min-Heap<br/>insertHeap for each server<br/>Time: O(n log n)<br/>heapifyUp operations"]
+    G --> H["printGraph<br/>Display Network Topology<br/>Show server connections"]
+    H --> I["🔵 BEGIN MAIN LOOP<br/>simulateTaskAssignment<br/>FOR task = 1 TO NUM_TASKS<br/>Total time: O(n log n)"]
+    
+    style A fill:#90EE90,stroke:#000,stroke-width:3px,color:#000
+    style I fill:#87CEEB,stroke:#000,stroke-width:3px,color:#000
+```
+
+### Main Task Assignment Loop
+
+```mermaid
+flowchart TD
+    J["Generate Random<br/>Task Load<br/>rand % MAX_TASK_LOAD<br/>Range: MIN to MAX"] --> K["Extract Min-Load Server<br/>extractMin from Heap<br/>Time: O(log n)<br/>heapifyDown operation"]
+    K --> L["Assign Task to Server<br/>server.currentLoad += taskLoad<br/>Update server state"]
+    L --> M["Reinsert Server to Heap<br/>insertHeap with new load<br/>Time: O(log n)<br/>heapifyUp operation"]
+    M --> N["Print Assignment Details<br/>Task ID → Server ID<br/>New Load value<br/>Load percentage"]
+    N --> O{Rebalancing<br/>Trigger?<br/>task %<br/>REBALANCE_INTERVAL == 0}
+    
+    O -->|NO| P["Increment task++<br/>Continue Loop"]
+    O -->|YES| Q["🟠 REBALANCING PHASE"]
+    
+    P --> R{More Tasks?<br/>task < NUM_TASKS}
+    R -->|YES| J
+    R -->|NO| S["🟣 END LOOP<br/>All tasks assigned<br/>Proceed to results"]
+    
+    style J fill:#FFFACD,stroke:#000,stroke-width:2px,color:#000
+    style O fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
+    style Q fill:#FFE4B5,stroke:#000,stroke-width:2px,color:#000
+    style R fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
+    style S fill:#DDA0DD,stroke:#000,stroke-width:2px,color:#000
+```
+
+### Rebalancing Phase Detailed
+
+```mermaid
+flowchart TD
+    Q["🟠 REBALANCING PHASE<br/>rebalanceLoads function"] --> S["calculateAverageLoad<br/>Sum all server loads<br/>Divide by numServers<br/>Time: O(n)"]
+    S --> T["findMostLoadedServer<br/>Scan all servers<br/>Track maximum load<br/>Return server index<br/>Time: O(n)"]
+    T --> U["findLeastLoadedServer<br/>Scan all servers<br/>Track minimum load<br/>Return server index<br/>Time: O(n)"]
+    U --> V["Calculate Imbalance Percentage<br/>maxLoad% = max/capacity*100<br/>minLoad% = min/capacity*100<br/>imbalance = maxLoad% - minLoad%"]
+    V --> W{Imbalance ><br/>THRESHOLD?<br/>threshold = 20%}
+    
+    W -->|NO| X["Skip Rebalancing<br/>System is balanced enough<br/>Continue to next task"]
+    W -->|YES| Y["Perform Load Migration<br/>Calculate 50% of excess load<br/>Calculate migration amount<br/>from most-loaded to least-loaded"]
+    Y --> Z["Update Server Loads<br/>mostLoaded.load -= migration<br/>leastLoaded.load += migration"]
+    Z --> AA["Update Both in Heap<br/>updateHeap for most-loaded<br/>updateHeap for least-loaded<br/>Time: O(2 log n)<br/>Maintain heap property"]
+    AA --> AB["Print Rebalancing Log<br/>Show imbalance percentage<br/>Source and destination servers<br/>Migration amount<br/>Confirm rebalancing complete"]
+    AB --> AC["Return to Main Loop<br/>Continue task assignment"]
+    
+    X --> AC
+    
+    style Q fill:#FFE4B5,stroke:#000,stroke-width:3px,color:#000
+    style W fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
+    style Y fill:#FF6B6B,stroke:#000,stroke-width:2px,color:#fff
+```
+
+### Final Results & Cleanup
+
+```mermaid
+flowchart TD
+    AE["🟣 Calculate Final Results<br/>All tasks assigned<br/>Rebalancing complete"] --> AF["printServerStates<br/>Display all servers<br/>Current load values<br/>Load percentages<br/>Time: O(n)"]
+    AF --> AG["Calculate Final Statistics<br/>Average Load across all<br/>Maximum load value<br/>Minimum load value<br/>Load Difference"]
+    AG --> AH{Determine<br/>System Status<br/>Difference < 10%?}
+    
+    AH -->|YES| AI["Status: WELL-BALANCED ✓✓✓<br/>Excellent load distribution"]
+    AH -->|NO| AJ["Status: NEEDS ATTENTION<br/>Consider more rebalancing"]
+    
+    AI --> AK["Print Final Statistics Box<br/>Display all metrics<br/>Show balance status<br/>Average vs individual loads"]
+    AJ --> AK
+    
+    AK --> AL["🧹 CLEANUP PHASE"]
+    AL --> AM["freeMinHeap<br/>Free heap array memory<br/>Free heap structure<br/>Time: O(1)"]
+    AM --> AN["freeGraph<br/>Free all adjacency lists<br/>Free all nodes<br/>Free graph structure<br/>Time: O(V+E)"]
+    AN --> AO["Free Server Array<br/>Deallocate servers array<br/>Release all memory"]
+    AO --> AP["Print Completion Message<br/>Thank you message<br/>Program exit notice"]
+    AP --> AQ["🔴 END PROGRAM<br/>return 0<br/>Exit with success"]
+    
+    style AE fill:#DDA0DD,stroke:#000,stroke-width:3px,color:#000
+    style AH fill:#FFD700,stroke:#000,stroke-width:2px,color:#000
+    style AI fill:#90EE90,stroke:#000,stroke-width:2px,color:#000
+    style AJ fill:#FFB6C6,stroke:#000,stroke-width:2px,color:#000
+    style AL fill:#FF9999,stroke:#000,stroke-width:2px,color:#000
+    style AQ fill:#FFB6C6,stroke:#000,stroke-width:3px,color:#000
+```
+
+### Function Call Sequence
+
 ```mermaid
 flowchart LR
-    A["START<br/>main()"] --> B["Initialize System<br/>srand<br/>Print Welcome"]
-    B --> C["createServer Array<br/>Random capacities"]
-    C --> D["createGraph<br/>Adjacency list"]
-    D --> E["Build Network<br/>addEdge"]
-    E --> F["createMinHeap<br/>capacity = numServers"]
-    F --> G["Populate Heap<br/>insertHeap x n<br/>O(n log n)"]
-    G --> H["printGraph<br/>Display Network"]
-    H --> I["BEGIN MAIN LOOP<br/>FOR 1..NUM_TASKS"]
+    A["main()"] --> B["createServer<br/>Allocate &<br/>Initialize"]
+    A --> C["createGraph<br/>Build Network<br/>Topology"]
+    A --> D["createMinHeap<br/>Initialize<br/>Heap"]
     
-    I --> J["Generate Task Load"]
-    J --> K["extractMin<br/>O(log n)"]
-    K --> L["Assign Task<br/>Update Load"]
-    L --> M["insertHeap<br/>O(log n)"]
-    M --> N["Print Assignment"]
+    B --> E["Setup<br/>Complete"]
+    C --> E
+    D --> E
     
-    N --> O{Rebalance<br/>Trigger?}
+    E --> F["simulateTaskAssignment<br/>MAIN LOOP"]
     
-    O -->|NO| P["task++"]
-    P --> Q{More Tasks?}
-    Q -->|YES| J
+    F --> G["extractMin<br/>O(log n)<br/>Get least-loaded"]
+    F --> H["insertHeap<br/>O(log n)<br/>Reinsert"]
     
-    O -->|YES| R["REBALANCING PHASE"]
-    R --> S["calcAverage<br/>Load O(n)"]
-    S --> T["findMax<br/>Server O(n)"]
-    T --> U["findMin<br/>Server O(n)"]
-    U --> V["Calculate<br/>Imbalance %"]
+    F --> I{Periodic<br/>Rebalance?}
     
-    V --> W{Imbalance ><br/>Threshold?}
+    I --> J["rebalanceLoads<br/>O(n)"]
+    J --> K["calculateAverageLoad<br/>O(n)"]
+    J --> L["findMostLoaded<br/>O(n)"]
+    J --> M["findLeastLoaded<br/>O(n)"]
+    J --> N["updateHeap<br/>O(2 log n)"]
     
-    W -->|NO| X["Continue"]
-    X --> P
+    K --> O["Rebalance<br/>Complete"]
+    L --> O
+    M --> O
+    N --> O
     
-    W -->|YES| Y["Migrate Load<br/>50% excess"]
-    Y --> Z["updateHeap<br/>Both servers<br/>O(2 log n)"]
-    Z --> AA["Print Rebalance<br/>Info"]
-    AA --> X
+    I --> P["Continue"]
+    O --> P
     
-    Q -->|NO| AB["END LOOP<br/>All tasks done"]
+    G --> H
+    H --> P
     
-    AB --> AC["printServerStates<br/>Display loads O(n)"]
-    AC --> AD["Final Statistics<br/>Avg/Max/Min"]
-    AD --> AE{System<br/>Status?}
+    P --> Q{All Tasks<br/>Done?}
+    Q -->|NO| G
+    Q -->|YES| R["Final Stats<br/>Display Results"]
     
-    AE -->|Balanced| AF["WELL-BALANCED ✓✓✓"]
-    AE -->|Unbalanced| AG["NEEDS ATTENTION"]
+    R --> S["freeMinHeap<br/>O(1)"]
+    R --> T["freeGraph<br/>O(V+E)"]
+    S --> U["Cleanup<br/>Complete"]
+    T --> U
+    U --> V["End"]
     
-    AF --> AH["freeMinHeap<br/>Free memory"]
-    AG --> AH
-    
-    AH --> AI["freeGraph<br/>Free all nodes"]
-    AI --> AJ["Free Servers<br/>Array"]
-    AJ --> AK["Print Goodbye<br/>Message"]
-    AK --> AL["END<br/>return 0"]
-    
-    style A fill:#90EE90,stroke:#000,stroke-width:3px
-    style AL fill:#FFB6C6,stroke:#000,stroke-width:3px
-    style R fill:#FFE4B5,stroke:#000,stroke-width:2px
-    style I fill:#87CEEB,stroke:#000,stroke-width:2px
-    style AB fill:#DDA0DD,stroke:#000,stroke-width:2px
-    style W fill:#FFD700,stroke:#000,stroke-width:2px
-    style O fill:#FFD700,stroke:#000,stroke-width:2px
-    style AE fill:#FFD700,stroke:#000,stroke-width:2px
+    style A fill:#90EE90,stroke:#000,stroke-width:2px
+    style F fill:#87CEEB,stroke:#000,stroke-width:2px
+    style J fill:#FFE4B5,stroke:#000,stroke-width:2px
+    style R fill:#DDA0DD,stroke:#000,stroke-width:2px
+    style V fill:#FFB6C6,stroke:#000,stroke-width:2px
 ```
 
 ### Flowchart Legend
